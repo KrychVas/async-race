@@ -1,66 +1,154 @@
 :root {
-  --bg-color: #121212;
-  --card-bg: #1e1e1e;
-  --primary-color: #4caf50;
-  --accent-color: #2196f3;
-  --danger-color: #f44336;
-  --text-color: #ffffff;
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --primary-color: #22c55e;
+  --accent-color: #3b82f6;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+  --text-color: #f8fafc;
+  --border-color: #334155;
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
   padding: 20px;
   margin: 0;
+  min-width: 500px;
 }
 
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Header & Nav */
 .header-nav {
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
 .btn {
-  padding: 8px 16px;
+  padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
   background-color: var(--accent-color);
   color: white;
-  transition: opacity 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.btn:hover {
-  opacity: 0.9;
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
+.btn-primary { background-color: var(--primary-color); }
+.btn-danger { background-color: var(--danger-color); }
+.btn-warning { background-color: var(--warning-color); }
+
+/* Controls Panel */
 .controls-panel {
   background-color: var(--card-bg);
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+  border: 1px solid var(--border-color);
 }
 
 .control-row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 input[type="text"] {
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #444;
-  background: #333;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: #0f172a;
   color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+input[type="text"]:focus {
+  border-color: var(--accent-color);
+}
+
+input[type="color"] {
+  border: none;
+  width: 40px;
+  height: 38px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.track-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.car-row {
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.car-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.track {
+  position: relative;
+  height: 50px;
+  background: #090d16;
+  border-bottom: 2px dashed #475569;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.car-icon {
+  position: absolute;
+  left: 0;
+  width: 60px;
+  height: 30px;
+  transition: transform 0.1s linear;
+}
+
+.finish-line {
+  position: absolute;
+  right: 20px;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: repeating-linear-gradient(
+    45deg,
+    #fff,
+    #fff 5px,
+    #000 5px,
+    #000 10px
+  );
 }
