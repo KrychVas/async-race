@@ -1,5 +1,5 @@
 import { createElement } from '../../ui/html-builder';
-import { Car } from '../../types';
+import type { Car } from '../../state/types';
 
 export const getCarSvg = (color: string): string => `
   <svg viewBox="0 0 512 512" width="50" height="25" fill="${color}">
