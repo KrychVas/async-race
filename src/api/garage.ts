@@ -26,3 +26,12 @@ export const createCar = async (car: Omit<Car, 'id'>): Promise<Car> => {
 export const deleteCar = async (id: number): Promise<void> => {
   await fetch(`${API_URL}/garage/${id}`, { method: 'DELETE' });
 };
+
+export const updateCar = async (id: number, car: Omit<Car, 'id'>): Promise<Car> => {
+  const response = await fetch(`${API_URL}/garage/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(car),
+  });
+  return response.json();
+};
