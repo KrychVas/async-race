@@ -1,10 +1,32 @@
 import './style.css';
 import { createElement } from './ui/html-builder';
 import { renderCarCard } from './views/garage/car-card';
+import { getCars, createCar } from './api/garage';
 
 const app = document.getElementById('app');
 
-if (app) {
+const renderApp = async () => {
+  if (!app) return;
+  app.innerHTML = '';
+
+  const nameInput = createElement({ tag: 'input', attributes: { type: 'text', placeholder: 'Car name' } });
+  const colorInput = createElement({ tag: 'input', attributes: { type: 'color', value: '#e66465' } });
+  const createBtn = createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'CREATE' });
+
+  createBtn.addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    const color = colorInput.value;
+
+    if (!name) {
+      alert('Please enter a car name!');
+      return;
+    }
+
+    await createCar({ name, color });
+    nameInput.value = '';
+    renderApp();
+  });
+
   const nav = createElement({
     tag: 'nav',
     classNames: ['header-nav'],
@@ -21,11 +43,7 @@ if (app) {
       createElement({
         tag: 'div',
         classNames: ['control-row'],
-        children: [
-          createElement({ tag: 'input', attributes: { type: 'text', placeholder: 'Car name' } }),
-          createElement({ tag: 'input', attributes: { type: 'color', value: '#e66465' } }),
-          createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'CREATE' }),
-        ],
+        children: [nameInput, colorInput, createBtn],
       }),
       createElement({
         tag: 'div',
@@ -39,21 +57,31 @@ if (app) {
     ],
   });
 
-  const title = createElement({
-    tag: 'h1',
-    textContent: 'Garage (2)',
-  });
-
   const trackContainer = createElement({
     tag: 'div',
     classNames: ['track-container'],
   });
 
-  // Тестові машинки для перевірки вигляду
-  const sampleCar1 = renderCarCard({ id: 1, name: 'Tesla Model S', color: '#ef4444' });
-  const sampleCar2 = renderCarCard({ id: 2, name: 'BMW M5', color: '#3b82f6' });
+  try {
+    const { items: cars, totalCount } = await getCars(1);
+    
+    const title = createElement({
+      tag: 'h1',
+      textContent: `Garage (${totalCount})`,
+    });
 
-  trackContainer.append(sampleCar1, sampleCar2);
+    cars.forEach((car) => {
+      trackContainer.appendChild(renderCarCard(car));
+    });
 
-  app.append(nav, controls, title, trackContainer);
-}
+    app.append(nav, controls, title, trackContainer);
+  } catch (error) {
+    const title = createElement({
+      tag: 'h1',
+      textContent: 'Garage (Server connection failed)',
+    });
+    app.append(nav, controls, title, trackContainer);
+  }
+};
+
+renderApp();
