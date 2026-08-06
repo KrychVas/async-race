@@ -2,11 +2,12 @@ import './style.css';
 import { createElement } from './ui/html-builder';
 import { renderCarCard } from './views/garage/car-card';
 import { getCars, createCar, deleteCar, updateCar } from './api/garage';
+import { handleGenerateCars } from './views/garage/garage-view';
 
 const app = document.getElementById('app');
 let selectedCarId: number | null = null;
 
-const renderApp = async () => {
+export const renderApp = async () => {
   if (!app) return;
   app.innerHTML = '';
 
@@ -47,6 +48,14 @@ const renderApp = async () => {
     renderApp();
   });
 
+  // Action: Generate 100 Cars
+  const generateBtn = createElement({ tag: 'button', classNames: ['btn'], textContent: 'GENERATE CARS' });
+  generateBtn.addEventListener('click', async () => {
+    generateBtn.disabled = true; 
+    await handleGenerateCars();
+    renderApp(); 
+  });
+
   const nav = createElement({
     tag: 'nav',
     classNames: ['header-nav'],
@@ -76,7 +85,7 @@ const renderApp = async () => {
         children: [
           createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'RACE' }),
           createElement({ tag: 'button', classNames: ['btn', 'btn-warning'], textContent: 'RESET' }),
-          createElement({ tag: 'button', classNames: ['btn'], textContent: 'GENERATE CARS' }),
+          generateBtn,
         ],
       }),
     ],
