@@ -3,6 +3,8 @@ import { createElement } from './ui/html-builder';
 import { renderCarCard } from './views/garage/car-card';
 import { getCars, createCar, deleteCar, updateCar } from './api/garage';
 import { handleGenerateCars } from './views/garage/garage-view';
+import { appState } from './state/app-state';
+import { CARS_PER_PAGE } from './constants';
 
 const app = document.getElementById('app');
 let selectedCarId: number | null = null;
@@ -51,9 +53,9 @@ export const renderApp = async () => {
   // Action: Generate 100 Cars
   const generateBtn = createElement({ tag: 'button', classNames: ['btn'], textContent: 'GENERATE CARS' });
   generateBtn.addEventListener('click', async () => {
-    generateBtn.disabled = true; 
+    generateBtn.disabled = true;
     await handleGenerateCars();
-    renderApp(); 
+    renderApp();
   });
 
   const nav = createElement({
@@ -97,11 +99,56 @@ export const renderApp = async () => {
   });
 
   try {
-    const { items: cars, totalCount } = await getCars(1);
-    
+    // 1. Отримуємо машини конкретно для поточного номера сторінки
+    const { items: cars, totalCount } = await getCars(appState.currentPage);
+    appState.totalCars = totalCount;
+
+    // 2. Розраховуємо загальну кількість сторінок
+    const totalPages = Math.ceil(totalCount / CARS_PER_PAGE) || 1;
+
     const title = createElement({
       tag: 'h1',
       textContent: `Garage (${totalCount})`,
+    });
+
+    const pageSubtitle = createElement({
+      tag: 'h2',
+      textContent: `Page #${appState.currentPage} / ${totalPages}`,
+    });
+
+    // 3. Кнопки пагінації (PREV / NEXT)
+    const prevBtn = createElement({
+      tag: 'button',
+      classNames: ['btn'],
+      textContent: 'PREV',
+      attributes: appState.currentPage <= 1 ? { disabled: 'true' } : {},
+    });
+
+    const nextBtn = createElement({
+      tag: 'button',
+      classNames: ['btn'],
+      textContent: 'NEXT',
+      attributes: appState.currentPage >= totalPages ? { disabled: 'true' } : {},
+    });
+
+    prevBtn.addEventListener('click', async () => {
+      if (appState.currentPage > 1) {
+        appState.currentPage -= 1;
+        await renderApp();
+      }
+    });
+
+    nextBtn.addEventListener('click', async () => {
+      if (appState.currentPage < totalPages) {
+        appState.currentPage += 1;
+        await renderApp();
+      }
+    });
+
+    const paginationPanel = createElement({
+      tag: 'div',
+      classNames: ['control-row'],
+      children: [prevBtn, nextBtn],
     });
 
     cars.forEach((car) => {
@@ -112,6 +159,11 @@ export const renderApp = async () => {
       removeBtn?.addEventListener('click', async () => {
         await deleteCar(car.id);
         if (selectedCarId === car.id) selectedCarId = null;
+        
+        // Якщо видалили останню авто на сторінці — автоматично повертаємося на сторінку назад
+        if (cars.length === 1 && appState.currentPage > 1) {
+          appState.currentPage -= 1;
+        }
         renderApp();
       });
 
@@ -129,7 +181,7 @@ export const renderApp = async () => {
       trackContainer.appendChild(carCard);
     });
 
-    app.append(nav, controls, title, trackContainer);
+    app.append(nav, controls, title, pageSubtitle, paginationPanel, trackContainer);
   } catch (error) {
     const title = createElement({
       tag: 'h1',
