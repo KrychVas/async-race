@@ -1,5 +1,7 @@
 import { createElement } from '../../ui/html-builder';
 import type { Car } from '../../state/types';
+import { startEngine, stopEngine, driveEngine } from '../../api/engine';
+import { animateCar, stopAnimation, pauseAnimation } from '../../animation/race-animation';
 
 export const getCarSvg = (color: string): string => `
   <svg viewBox="0 0 512 512" width="50" height="25" fill="${color}">
@@ -8,6 +10,14 @@ export const getCarSvg = (color: string): string => `
 `;
 
 export const renderCarCard = (car: Car): HTMLElement => {
+  const btnA = createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'A' });
+  const btnB = createElement({
+    tag: 'button',
+    classNames: ['btn', 'btn-warning'],
+    textContent: 'B',
+    attributes: { disabled: 'true' },
+  });
+
   const carCard = createElement({
     tag: 'div',
     classNames: ['car-row'],
@@ -24,10 +34,7 @@ export const renderCarCard = (car: Car): HTMLElement => {
       createElement({
         tag: 'div',
         classNames: ['car-header'],
-        children: [
-          createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'A' }),
-          createElement({ tag: 'button', classNames: ['btn', 'btn-warning'], textContent: 'B', attributes: { disabled: 'true' } }),
-        ],
+        children: [btnA, btnB],
       }),
       createElement({
         tag: 'div',
@@ -48,6 +55,32 @@ export const renderCarCard = (car: Car): HTMLElement => {
   if (carIcon) {
     carIcon.innerHTML = getCarSvg(car.color);
   }
+
+  // 1. Старт двигуна (Кнопка A)
+  btnA.addEventListener('click', async () => {
+    btnA.setAttribute('disabled', 'true');
+    btnB.removeAttribute('disabled');
+
+    const { velocity, distance } = await startEngine(car.id);
+
+    const animationPromise = animateCar(car.id, velocity, distance);
+    const driveResult = await driveEngine(car.id);
+
+    // Якщо 500 Engine Broken — зупиняємо анімацію в поточній позиції
+    if (!driveResult.success) {
+      pauseAnimation(car.id);
+    }
+
+    await animationPromise;
+  });
+
+  // 2. Зупинка двигуна (Кнопка B)
+  btnB.addEventListener('click', async () => {
+    btnB.setAttribute('disabled', 'true');
+    stopAnimation(car.id);
+    await stopEngine(car.id);
+    btnA.removeAttribute('disabled');
+  });
 
   return carCard;
 };
