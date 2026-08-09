@@ -7,52 +7,64 @@ export interface WinnerResult {
   time: number;
 }
 
-// Запуск масової гонки для поточних машин на сторінці
 export const startRace = async (cars: Car[]): Promise<WinnerResult | null> => {
-  let winnerFound = false;
+  return new Promise((resolve) => {
+    let winnerFound = false;
+    let finishedCount = 0;
 
-  const racePromises = cars.map(async (car) => {
-    const startTime = performance.now();
-
-    try {
-      const { velocity, distance } = await startEngine(car.id);
-      const animationPromise = animateCar(car.id, velocity, distance);
-      const drivePromise = driveEngine(car.id);
-
-      const driveResult = await drivePromise;
-
-      if (!driveResult.success) {
-        pauseAnimation(car.id);
-        return null;
-      }
-
-      const animationResult = await animationPromise;
-      const endTime = performance.now();
-      const time = Number(((endTime - startTime) / 1000).toFixed(2));
-
-      // Перша машина, яка успішно доїхала без поломки — переможець
-      if (animationResult.success && !winnerFound) {
-        winnerFound = true;
-        return { car, time };
-      }
-    } catch {
-      pauseAnimation(car.id);
+    if (!cars.length) {
+      resolve(null);
+      return;
     }
 
-    return null;
+    cars.forEach(async (car) => {
+      const startTime = performance.now();
+
+      try {
+        const { velocity, distance } = await startEngine(car.id);
+
+        const animationPromise = animateCar(car.id, velocity, distance);
+        const drivePromise = driveEngine(car.id);
+
+        const driveResult = await drivePromise;
+
+        // Зупинка при поломці двигуна (500 Server Error)
+        if (!driveResult.success) {
+          pauseAnimation(car.id);
+          return;
+        }
+
+        await animationPromise;
+
+        const endTime = performance.now();
+        const time = Number(((endTime - startTime) / 1000).toFixed(2));
+
+        // Перше авто без поломки — переможець
+        if (!winnerFound) {
+          winnerFound = true;
+          resolve({ car, time });
+        }
+      } catch (error) {
+        console.warn(`Race error on car #${car.id}:`, error);
+        pauseAnimation(car.id);
+      } finally {
+        finishedCount += 1;
+        if (finishedCount === cars.length && !winnerFound) {
+          resolve(null);
+        }
+      }
+    });
   });
-
-  const results = await Promise.all(racePromises);
-  const winner = results.find((result): result is WinnerResult => result !== null);
-
-  return winner || null;
 };
 
-// Зупинка та скидання всіх машин на сторінці
 export const resetRace = async (cars: Car[]): Promise<void> => {
   const stopPromises = cars.map(async (car) => {
-    stopAnimation(car.id);
-    await stopEngine(car.id);
+    try {
+      stopAnimation(car.id);
+      await stopEngine(car.id);
+    } catch (error) {
+      console.error(`Reset error for car #${car.id}:`, error);
+    }
   });
 
   await Promise.all(stopPromises);
