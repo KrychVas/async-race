@@ -14,6 +14,11 @@ export const getCars = async (page = 1, limit = CARS_PER_PAGE): Promise<GetCarsR
   return { items, totalCount };
 };
 
+export const getCar = async (id: number): Promise<Car> => {
+  const response = await fetch(`${API_URL}/garage/${id}`);
+  return response.json();
+};
+
 export const createCar = async (car: Omit<Car, 'id'>): Promise<Car> => {
   const response = await fetch(`${API_URL}/garage`, {
     method: 'POST',

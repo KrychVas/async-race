@@ -1,3 +1,6 @@
+import { getCar } from './garage';
+import type { Car } from '../state/types';
+
 const WINNERS_URL = 'http://127.0.0.1:3000/winners';
 
 export interface WinnerData {
@@ -5,6 +8,53 @@ export interface WinnerData {
   wins: number;
   time: number;
 }
+
+export interface Winner extends WinnerData {
+  car?: Car;
+}
+
+export interface GetWinnersResponse {
+  items: Winner[];
+  totalCount: number;
+}
+
+export const deleteWinner = async (id: number): Promise<void> => {
+  await fetch(`${WINNERS_URL}/${id}`, { method: 'DELETE' });
+};
+
+export const getWinners = async (
+  page = 1,
+  limit = 10,
+  sort?: 'wins' | 'time',
+  order?: 'ASC' | 'DESC'
+): Promise<GetWinnersResponse> => {
+  let url = `${WINNERS_URL}?_page=${page}&_limit=${limit}`;
+  if (sort && order) {
+    url += `&_sort=${sort}&_order=${order}`;
+  }
+
+  const res = await fetch(url);
+  const totalCount = Number(res.headers.get('X-Total-Count') || 0);
+  const winnersData: WinnerData[] = await res.json();
+
+  const winnersWithCars = await Promise.all(
+    winnersData.map(async (winner) => {
+      try {
+        const car = await getCar(winner.id);
+        return { ...winner, car };
+      } catch {
+        // Автоматично видаляємо застарілий запис з сервера, якщо машина не існує
+        await deleteWinner(winner.id).catch(() => {});
+        return null;
+      }
+    })
+  );
+
+  // Відфільтровуємо видалені машини
+  const validWinners = winnersWithCars.filter((item): item is Winner => item !== null);
+
+  return { items: validWinners, totalCount };
+};
 
 export const getWinner = async (id: number): Promise<WinnerData | null> => {
   const res = await fetch(`${WINNERS_URL}/${id}`);

@@ -2,16 +2,48 @@ import './style.css';
 import { createElement } from './ui/html-builder';
 import { renderCarCard } from './views/garage/car-card';
 import { getCars, createCar, deleteCar, updateCar } from './api/garage';
+import { deleteWinner } from './api/winners';
 import { handleGenerateCars } from './views/garage/garage-view';
+import { renderWinnersView } from './views/winners/winners-view';
 import { appState } from './state/app-state';
 import { CARS_PER_PAGE } from './constants';
 
 const app = document.getElementById('app');
 let selectedCarId: number | null = null;
+let currentView: 'garage' | 'winners' = 'garage';
 
 export const renderApp = async () => {
   if (!app) return;
   app.innerHTML = '';
+
+  // Навігаційні кнопки
+  const garageNavBtn = createElement({ tag: 'button', classNames: ['btn'], textContent: 'GARAGE' });
+  const winnersNavBtn = createElement({ tag: 'button', classNames: ['btn'], textContent: 'WINNERS' });
+
+  garageNavBtn.addEventListener('click', () => {
+    currentView = 'garage';
+    renderApp();
+  });
+
+  winnersNavBtn.addEventListener('click', () => {
+    currentView = 'winners';
+    renderApp();
+  });
+
+  const nav = createElement({
+    tag: 'nav',
+    classNames: ['header-nav'],
+    children: [garageNavBtn, winnersNavBtn],
+  });
+
+  // Відображення сторінки WINNERS
+  if (currentView === 'winners') {
+    const winnersView = await renderWinnersView();
+    app.append(nav, winnersView);
+    return;
+  }
+
+  // --- ВІДОБРАЖЕННЯ СТОРІНКИ GARAGE ---
 
   // Form: Create
   const createNameInput = createElement({ tag: 'input', attributes: { type: 'text', placeholder: 'Car name' } });
@@ -58,15 +90,6 @@ export const renderApp = async () => {
     renderApp();
   });
 
-  const nav = createElement({
-    tag: 'nav',
-    classNames: ['header-nav'],
-    children: [
-      createElement({ tag: 'button', classNames: ['btn'], textContent: 'GARAGE' }),
-      createElement({ tag: 'button', classNames: ['btn'], textContent: 'WINNERS' }),
-    ],
-  });
-
   const controls = createElement({
     tag: 'div',
     classNames: ['controls-panel'],
@@ -99,11 +122,9 @@ export const renderApp = async () => {
   });
 
   try {
-    // 1. Отримуємо машини конкретно для поточного номера сторінки
     const { items: cars, totalCount } = await getCars(appState.currentPage);
     appState.totalCars = totalCount;
 
-    // 2. Розраховуємо загальну кількість сторінок
     const totalPages = Math.ceil(totalCount / CARS_PER_PAGE) || 1;
 
     const title = createElement({
@@ -116,7 +137,6 @@ export const renderApp = async () => {
       textContent: `Page #${appState.currentPage} / ${totalPages}`,
     });
 
-    // 3. Кнопки пагінації (PREV / NEXT)
     const prevBtn = createElement({
       tag: 'button',
       classNames: ['btn'],
@@ -154,13 +174,14 @@ export const renderApp = async () => {
     cars.forEach((car) => {
       const carCard = renderCarCard(car);
 
-      // Listener for REMOVE
+      // Listener for REMOVE (з видаленням запису з таблиці переможців)
       const removeBtn = carCard.querySelector('.btn-danger');
       removeBtn?.addEventListener('click', async () => {
         await deleteCar(car.id);
+        await deleteWinner(car.id).catch(() => {});
+
         if (selectedCarId === car.id) selectedCarId = null;
         
-        // Якщо видалили останню авто на сторінці — автоматично повертаємося на сторінку назад
         if (cars.length === 1 && appState.currentPage > 1) {
           appState.currentPage -= 1;
         }
