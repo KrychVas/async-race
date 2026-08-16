@@ -26,11 +26,11 @@ export const stopEngine = async (id: number): Promise<EngineResponse> => {
 export const driveEngine = async (id: number): Promise<DriveResponse> => {
   const response = await fetch(`${API_URL}/engine?id=${id}&status=drive`, {
     method: 'PATCH',
-  }).catch(() => ({ status: 500 }));
+  }).catch(() => null);
 
-  if (response instanceof Response) {
-    if (response.status === 500) return { success: false };
+  if (response && response.ok) {
     return response.json();
   }
+
   return { success: false };
 };
