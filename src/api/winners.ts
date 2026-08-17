@@ -51,7 +51,7 @@ export const getWinners = async (
   );
 
   // Відфільтровуємо видалені машини
-  const validWinners = winnersWithCars.filter((item): item is Winner => item !== null);
+  const validWinners = winnersWithCars.filter((item): item is NonNullable<typeof item> => item !== null);
 
   return { items: validWinners, totalCount };
 };
