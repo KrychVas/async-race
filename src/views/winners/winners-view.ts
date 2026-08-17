@@ -1,6 +1,6 @@
 import { createElement } from '../../ui/html-builder';
 import { getWinners } from '../../api/winners';
-import { renderCarSvg } from '../../ui/car-svg';
+import { getCarSvgContent } from '../../utils/car-mapping';
 
 let winnersPage = 1;
 let sortField: 'wins' | 'time' | undefined = undefined;
@@ -58,7 +58,7 @@ export const renderWinnersView = async (): Promise<HTMLElement> => {
   const rows = winners.map((winner, index) => {
     const globalIndex = (winnersPage - 1) * 10 + index + 1;
     const svgWrapper = createElement({ tag: 'div' });
-    svgWrapper.innerHTML = renderCarSvg(winner.car?.color || '#ffffff');
+    svgWrapper.innerHTML = getCarSvgContent(winner.car?.name || 'Unknown', winner.car?.color || '#ffffff');
 
     return createElement({
       tag: 'tr',

@@ -2,12 +2,12 @@ import { createElement } from '../../ui/html-builder';
 import type { Car } from '../../state/types';
 import { startEngine, stopEngine, driveEngine } from '../../api/engine';
 import { animateCar, stopAnimation, pauseAnimation } from '../../animation/race-animation';
+import { getCarSvgContent } from '../../utils/car-mapping';
+import { audioManager } from '../../utils/audio';
 
-export const getCarSvg = (color: string): string => `
-  <svg viewBox="0 0 512 512" width="50" height="25" fill="${color}">
-    <path d="M499.99 176h-59.87l-16.64-41.6C416.38 116.17 398.73 104 378.78 104H133.22c-19.95 0-37.6 12.17-44.7 30.4L71.88 176H12.01C5.38 176 0 181.38 0 188.01v68c0 6.63 5.38 12.01 12.01 12.01h20.12c1.78 30.95 27.42 55.98 58.87 55.98 31.45 0 57.09-25.03 58.87-55.98h212.26c1.78 30.95 27.42 55.98 58.87 55.98 31.45 0 57.09-25.03 58.87-55.98h20.12c6.63 0 12.01-5.38 12.01-12.01v-68c0-6.63-5.38-12.01-12.01-12.01zM91 292c-15.46 0-28-12.54-28-28s12.54-28 28-28 28 12.54 28 28-12.54 28-28 28zm330 0c-15.46 0-28-12.54-28-28s12.54-28 28-28 28 12.54 28 28-12.54 28-28 28z"/>
-  </svg>
-`;
+type BreakEffect = 'crash' | 'pedestrian' | 'police';
+const EFFECT_TYPES: BreakEffect[] = ['crash', 'pedestrian', 'police'];
+const EFFECT_COUNT = EFFECT_TYPES.length;
 
 export const renderCarCard = (car: Car): HTMLElement => {
   const btnA = createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'A' });
@@ -42,8 +42,18 @@ export const renderCarCard = (car: Car): HTMLElement => {
         children: [
           createElement({
             tag: 'div',
+            classNames: ['skid-trail'],
+            attributes: { id: `skid-${car.id}` },
+          }),
+          createElement({
+            tag: 'div',
             classNames: ['car-icon'],
             attributes: { id: `car-${car.id}` },
+          }),
+          createElement({
+            tag: 'div',
+            classNames: ['effect-container'],
+            attributes: { id: `effect-${car.id}` },
           }),
           createElement({ tag: 'div', classNames: ['finish-line'] }),
         ],
@@ -53,31 +63,69 @@ export const renderCarCard = (car: Car): HTMLElement => {
 
   const carIcon = carCard.querySelector(`#car-${car.id}`);
   if (carIcon) {
-    carIcon.innerHTML = getCarSvg(car.color);
+    carIcon.innerHTML = getCarSvgContent(car.name, car.color);
   }
+
+  const getEffectContainer = (): Element | null => carCard.querySelector(`#effect-${car.id}`);
+
+  const showEffect = (effect: BreakEffect): void => {
+    const container = getEffectContainer();
+    if (!container) return;
+    if (effect === 'crash') {
+      container.innerHTML = '<span class="break-effect">💥 Engine Broken</span>';
+      audioManager.playSound('crash');
+    } else if (effect === 'pedestrian') {
+      container.innerHTML = '<span class="break-effect">🚶 Pedestrian!</span>';
+      audioManager.playSound('honk');
+    } else {
+      container.innerHTML = '<span class="break-effect">🚓 Stopped by Police</span>';
+      audioManager.playSound('police');
+    }
+  };
+
+  const clearEffect = (): void => {
+    const container = getEffectContainer();
+    if (container) container.innerHTML = '';
+  };
+
+  const setDriving = (isDriving: boolean): void => {
+    if (isDriving) {
+      btnA.setAttribute('disabled', 'true');
+      btnB.removeAttribute('disabled');
+    } else {
+      btnB.setAttribute('disabled', 'true');
+      btnA.removeAttribute('disabled');
+    }
+  };
 
   // 1. Старт двигуна (Кнопка A)
   btnA.addEventListener('click', async () => {
-    btnA.setAttribute('disabled', 'true');
-    btnB.removeAttribute('disabled');
+    setDriving(true);
+    clearEffect();
 
     const { velocity, distance } = await startEngine(car.id);
+    audioManager.playSound('start');
 
     const animationPromise = animateCar(car.id, velocity, distance);
     const driveResult = await driveEngine(car.id);
 
-    // Якщо 500 Engine Broken — зупиняємо анімацію в поточній позиції
     if (!driveResult.success) {
       pauseAnimation(car.id);
+      const effect = EFFECT_TYPES[Math.floor(Math.random() * EFFECT_COUNT)];
+      showEffect(effect);
+      return;
     }
 
+    // Wait for animation to finish, THEN re-enable A
     await animationPromise;
+    setDriving(false);
   });
 
   // 2. Зупинка двигуна (Кнопка B)
   btnB.addEventListener('click', async () => {
     btnB.setAttribute('disabled', 'true');
     stopAnimation(car.id);
+    clearEffect();
     await stopEngine(car.id);
     btnA.removeAttribute('disabled');
   });
