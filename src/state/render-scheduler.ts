@@ -4,12 +4,12 @@
  * main.ts registers the render function; other modules call scheduleRender().
  */
 
-type RenderFn = () => Promise<void>;
+type RenderFunction = () => Promise<void>;
 
-let registeredRender: RenderFn | null = null;
+let registeredRender: RenderFunction | null = null;
 
-export const registerRender = (fn: RenderFn): void => {
-  registeredRender = fn;
+export const registerRender = (function_: RenderFunction): void => {
+  registeredRender = function_;
 };
 
 export const scheduleRender = async (): Promise<void> => {

@@ -67,13 +67,13 @@ export const showSettingsModal = (): void => {
   });
 
   // Close Button
-  const closeBtn = createElement({
+  const closeButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'Close & Save',
   });
 
-  closeBtn.addEventListener('click', () => {
+  closeButton.addEventListener('click', () => {
     overlay.remove();
   });
 
@@ -84,10 +84,10 @@ export const showSettingsModal = (): void => {
       createElement({ tag: 'h2', textContent: '⚙️ Settings' }),
       musicGroup,
       themeGroup,
-      closeBtn,
+      closeButton,
     ],
   });
 
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  overlay.append(modal);
+  document.body.append(overlay);
 };

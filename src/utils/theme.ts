@@ -11,7 +11,7 @@ export const THEME_OPTIONS: ThemeOption[] = [
 ];
 
 export const setTheme = (themeId: string): void => {
-  document.body.setAttribute('data-theme', themeId);
+  document.body.dataset.theme = themeId;
   localStorage.setItem('async_race_theme', themeId);
 };
 

@@ -24,7 +24,7 @@ export const showWinnerModal = (name: string, time: number): void => {
     textAlign: 'center',
   });
 
-  document.body.appendChild(modal);
+  document.body.append(modal);
 
   setTimeout(() => {
     modal.remove();

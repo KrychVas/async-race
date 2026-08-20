@@ -14,12 +14,12 @@ const EFFECT_TYPES: BreakEffect[] = ['crash', 'pedestrian', 'police'];
 const EFFECT_COUNT = EFFECT_TYPES.length;
 
 export const renderCarCard = (car: Car): HTMLElement => {
-  const btnA = createElement({
+  const buttonA = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'A',
   });
-  const btnB = createElement({
+  const buttonB = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-warning'],
     textContent: 'B',
@@ -50,7 +50,7 @@ export const renderCarCard = (car: Car): HTMLElement => {
       createElement({
         tag: 'div',
         classNames: ['car-header'],
-        children: [btnA, btnB],
+        children: [buttonA, buttonB],
       }),
       createElement({
         tag: 'div',
@@ -104,21 +104,21 @@ export const renderCarCard = (car: Car): HTMLElement => {
 
   const clearEffect = (): void => {
     const container = getEffectContainer();
-    if (container) container.innerHTML = '';
+    if (container) container.replaceChildren();
   };
 
   const setDriving = (isDriving: boolean): void => {
     if (isDriving) {
-      btnA.setAttribute('disabled', 'true');
-      btnB.removeAttribute('disabled');
+      buttonA.setAttribute('disabled', 'true');
+      buttonB.removeAttribute('disabled');
     } else {
-      btnB.setAttribute('disabled', 'true');
-      btnA.removeAttribute('disabled');
+      buttonB.setAttribute('disabled', 'true');
+      buttonA.removeAttribute('disabled');
     }
   };
 
   // 1. Старт двигуна (Кнопка A)
-  btnA.addEventListener('click', async () => {
+  buttonA.addEventListener('click', async () => {
     setDriving(true);
     clearEffect();
 
@@ -141,12 +141,12 @@ export const renderCarCard = (car: Car): HTMLElement => {
   });
 
   // 2. Зупинка двигуна (Кнопка B)
-  btnB.addEventListener('click', async () => {
-    btnB.setAttribute('disabled', 'true');
+  buttonB.addEventListener('click', async () => {
+    buttonB.setAttribute('disabled', 'true');
     stopAnimation(car.id);
     clearEffect();
     await stopEngine(car.id);
-    btnA.removeAttribute('disabled');
+    buttonA.removeAttribute('disabled');
   });
 
   return carCard;

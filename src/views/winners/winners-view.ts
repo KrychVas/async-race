@@ -3,7 +3,7 @@ import { getWinners } from '../../api/winners';
 import { getCarSvgContent } from '../../utils/car-mapping';
 
 let winnersPage = 1;
-let sortField: 'wins' | 'time' | undefined = undefined;
+let sortField: 'wins' | 'time' | undefined;
 let sortOrder: 'ASC' | 'DESC' = 'ASC';
 
 export const renderWinnersView = async (): Promise<HTMLElement> => {
@@ -79,38 +79,42 @@ export const renderWinnersView = async (): Promise<HTMLElement> => {
   });
 
   // Navigation
-  const prevBtn = createElement({
+  const previousButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'PREV',
     attributes: winnersPage <= 1 ? { disabled: 'true' } : {},
   });
 
-  const nextBtn = createElement({
+  const nextButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'NEXT',
     attributes: winnersPage >= totalPages ? { disabled: 'true' } : {},
   });
 
-  prevBtn.addEventListener('click', async () => {
-    if (winnersPage > 1) {
-      winnersPage -= 1;
-      await refreshWinners();
+  previousButton.addEventListener('click', async () => {
+    if (!(winnersPage > 1)) {
+    	return;
     }
+
+    winnersPage -= 1;
+    await refreshWinners();
   });
 
-  nextBtn.addEventListener('click', async () => {
-    if (winnersPage < totalPages) {
-      winnersPage += 1;
-      await refreshWinners();
+  nextButton.addEventListener('click', async () => {
+    if (!(winnersPage < totalPages)) {
+    	return;
     }
+
+    winnersPage += 1;
+    await refreshWinners();
   });
 
   const pagination = createElement({
     tag: 'div',
     classNames: ['pagination-controls'],
-    children: [prevBtn, nextBtn],
+    children: [previousButton, nextButton],
   });
 
   return createElement({
@@ -130,6 +134,6 @@ const refreshWinners = async (): Promise<void> => {
   if (container && container.parentElement) {
     const parent = container.parentElement;
     container.remove();
-    parent.appendChild(await renderWinnersView());
+    parent.append(await renderWinnersView());
   }
 };

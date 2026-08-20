@@ -23,11 +23,11 @@ export const BODY_TYPES: BodyTypeOption[] = [
   { id: 'volvo', name: 'Minimalist (Volvo)' },
 ];
 
-const getHash = (str: string): number => {
+const getHash = (string_: string): number => {
   let hash = 0;
-  for (let i = 0; i < str.length; i += 1) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
+  for (let index = 0; index < string_.length; index += 1) {
+    hash = (hash << 5) - hash + string_.charCodeAt(index);
+    hash = Math.trunc(hash);
   }
   return Math.abs(hash);
 };
@@ -74,30 +74,30 @@ export const getCarSvgContent = (name: string, color: string): string => {
   }
 
   // 1. Remove all internal <style> tags (to avoid global CSS leaking across SVGs)
-  svgContent = svgContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  svgContent = svgContent.replaceAll(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
 
   // 2. Replace internal non-none fill attributes with the car's color
-  svgContent = svgContent.replace(/fill="(?!none)[^"]*"/gi, `fill="${color}"`);
-  svgContent = svgContent.replace(/fill='(?!none)[^']*'/gi, `fill='${color}'`);
+  svgContent = svgContent.replaceAll(/fill="(?!none)[^"]*"/gi, `fill="${color}"`);
+  svgContent = svgContent.replaceAll(/fill='(?!none)[^']*'/gi, `fill='${color}'`);
 
   // 3. Replace internal non-none stroke attributes with the car's color
-  svgContent = svgContent.replace(/stroke="(?!none)[^"]*"/gi, `stroke="${color}"`);
-  svgContent = svgContent.replace(/stroke='(?!none)[^']*'/gi, `stroke='${color}'`);
+  svgContent = svgContent.replaceAll(/stroke="(?!none)[^"]*"/gi, `stroke="${color}"`);
+  svgContent = svgContent.replaceAll(/stroke='(?!none)[^']*'/gi, `stroke='${color}'`);
 
   // 4. Clean style attributes so they don't lock hardcoded colors
-  svgContent = svgContent.replace(/style="([^"]*)"/gi, (_match, styleGroup) => {
+  svgContent = svgContent.replaceAll(/style="([^"]*)"/gi, (_match, styleGroup) => {
     let newStyle = styleGroup;
     if (newStyle.includes('fill:')) {
-      newStyle = newStyle.replace(/fill:\s*[^;"]+/gi, `fill: ${color}`);
+      newStyle = newStyle.replaceAll(/fill:\s*[^;"]+/gi, `fill: ${color}`);
     }
     if (newStyle.includes('stroke:')) {
-      newStyle = newStyle.replace(/stroke:\s*[^;"]+/gi, `stroke: ${color}`);
+      newStyle = newStyle.replaceAll(/stroke:\s*[^;"]+/gi, `stroke: ${color}`);
     }
     return `style="${newStyle}"`;
   });
 
   // 5. Clean class attributes that may reference stripped styles
-  svgContent = svgContent.replace(/\sclass="[^"]*"/gi, '');
+  svgContent = svgContent.replaceAll(/\sclass="[^"]*"/gi, '');
 
   // 6. Set root <svg> fill, stroke, and dimensions
   svgContent = svgContent.replace(

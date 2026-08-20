@@ -30,7 +30,7 @@ const showBreakEffect = (carId: number, effect: BreakEffect): void => {
 
 const clearEffect = (carId: number): void => {
   const effectContainer = document.querySelector(`#effect-${carId}`);
-  if (effectContainer) effectContainer.innerHTML = '';
+  if (effectContainer) effectContainer.replaceChildren();
 };
 
 const runCarRace = async (
@@ -71,25 +71,27 @@ const runCarRace = async (
 
 export const startRace = (cars: Car[]): Promise<WinnerResult | null> => {
   return new Promise((resolve) => {
-    if (!cars.length) {
+    if (cars.length === 0) {
       resolve(null);
       return;
     }
 
-    let winnerFound = false;
+    let isWinnerFound = false;
     let finishedCount = 0;
     const total = cars.length;
 
     const onWin = (result: WinnerResult): void => {
-      if (!winnerFound) {
-        winnerFound = true;
-        resolve(result);
+      if (isWinnerFound) {
+      	return;
       }
+
+      isWinnerFound = true;
+      resolve(result);
     };
 
     const onFinish = (): void => {
       finishedCount += 1;
-      if (finishedCount === total && !winnerFound) {
+      if (finishedCount === total && !isWinnerFound) {
         resolve(null);
       }
     };

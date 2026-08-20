@@ -17,7 +17,7 @@ export const openColorPickerModal = (options: OpenColorPickerOptions): void => {
   const existing = document.querySelector('.color-picker-overlay');
   if (existing) existing.remove();
 
-  let tempColor = options.currentColor;
+  let temporaryColor = options.currentColor;
 
   const overlay = createElement({ tag: 'div', classNames: ['settings-overlay', 'color-picker-overlay'] });
 
@@ -26,29 +26,29 @@ export const openColorPickerModal = (options: OpenColorPickerOptions): void => {
   // Preview Box inside modal
   const previewBox = createElement({ tag: 'div', classNames: ['car-preview-box', 'modal-car-preview'] });
   const updateModalPreview = (): void => {
-    previewBox.innerHTML = getCarSvgContent(options.carName, tempColor);
+    previewBox.innerHTML = getCarSvgContent(options.carName, temporaryColor);
   };
   updateModalPreview();
 
   // Native input for fine-tuning
   const nativeColorInput = createElement({
     tag: 'input',
-    attributes: { type: 'color', value: tempColor },
+    attributes: { type: 'color', value: temporaryColor },
   }) as HTMLInputElement;
 
   nativeColorInput.addEventListener('input', () => {
-    tempColor = nativeColorInput.value;
+    temporaryColor = nativeColorInput.value;
     updateModalPreview();
   });
   nativeColorInput.addEventListener('change', () => {
-    tempColor = nativeColorInput.value;
+    temporaryColor = nativeColorInput.value;
     updateModalPreview();
   });
 
   // Preset Palette
   const paletteContainer = createElement({ tag: 'div', classNames: ['color-palette-grid'] });
 
-  PRESET_COLORS.forEach((colorHex) => {
+  for (const colorHex of PRESET_COLORS) {
     const swatch = createElement({
       tag: 'button',
       classNames: ['color-swatch'],
@@ -56,13 +56,13 @@ export const openColorPickerModal = (options: OpenColorPickerOptions): void => {
     });
 
     swatch.addEventListener('click', () => {
-      tempColor = colorHex;
+      temporaryColor = colorHex;
       nativeColorInput.value = colorHex;
       updateModalPreview();
     });
 
-    paletteContainer.appendChild(swatch);
-  });
+    paletteContainer.append(swatch);
+  }
 
   // Controls group
   const colorControlRow = createElement({
@@ -75,31 +75,31 @@ export const openColorPickerModal = (options: OpenColorPickerOptions): void => {
   });
 
   // OK / Cancel Buttons
-  const okBtn = createElement({
+  const okButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'OK (Apply Color)',
   });
 
-  const cancelBtn = createElement({
+  const cancelButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-danger'],
     textContent: 'Cancel',
   });
 
-  okBtn.addEventListener('click', () => {
-    options.onApply(tempColor);
+  okButton.addEventListener('click', () => {
+    options.onApply(temporaryColor);
     overlay.remove();
   });
 
-  cancelBtn.addEventListener('click', () => {
+  cancelButton.addEventListener('click', () => {
     overlay.remove();
   });
 
-  const btnRow = createElement({
+  const buttonRow = createElement({
     tag: 'div',
     classNames: ['control-row'],
-    children: [okBtn, cancelBtn],
+    children: [okButton, cancelButton],
   });
 
   const modal = createElement({
@@ -110,10 +110,10 @@ export const openColorPickerModal = (options: OpenColorPickerOptions): void => {
       previewBox,
       paletteContainer,
       colorControlRow,
-      btnRow,
+      buttonRow,
     ],
   });
 
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  overlay.append(modal);
+  document.body.append(overlay);
 };
