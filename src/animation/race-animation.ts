@@ -22,7 +22,10 @@ export const animateCar = (
   let start: number | null = null;
 
   const skidElement = document.getElementById(`skid-${id}`);
-  const finishLineX = track.clientWidth - 76;
+  const finishLineElement = track.querySelector('.finish-line') as HTMLElement;
+  const finishLineX = finishLineElement
+    ? finishLineElement.offsetLeft
+    : track.clientWidth - 76;
 
   return new Promise((resolve) => {
     function step(timestamp: number) {
