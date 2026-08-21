@@ -31,6 +31,8 @@ Desktop.ini
 # AI Tools & Extensions
 .continueignore
 .continue/
+.continuerc.json
+.prompts/
 
 # Environment variables
 .env
