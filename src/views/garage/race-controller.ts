@@ -12,6 +12,9 @@ type BreakEffect = 'crash' | 'pedestrian' | 'police';
 const EFFECT_TYPES: BreakEffect[] = ['crash', 'pedestrian', 'police'];
 const EFFECT_COUNT = EFFECT_TYPES.length;
 
+const MS_PER_SEC = 1000;
+const TIME_DECIMALS = 2;
+
 const showBreakEffect = (carId: number, effect: BreakEffect): void => {
   const effectContainer = document.querySelector(`#effect-${carId}`);
   if (!effectContainer) return;
@@ -59,7 +62,7 @@ const runCarRace = async (
 
     await animationPromise;
 
-    const time = Number(((performance.now() - startTime) / 1000).toFixed(2));
+    const time = Number(((performance.now() - startTime) / MS_PER_SEC).toFixed(TIME_DECIMALS));
     onWin({ car, time });
   } catch (error) {
     console.warn(`Race error on car #${car.id}:`, error);
@@ -69,10 +72,10 @@ const runCarRace = async (
   }
 };
 
-export const startRace = (cars: Car[]): Promise<WinnerResult | null> => {
+export const startRace = (cars: Car[]): Promise<WinnerResult | undefined> => {
   return new Promise((resolve) => {
     if (cars.length === 0) {
-      resolve(null);
+      resolve(undefined);
       return;
     }
 
@@ -82,7 +85,7 @@ export const startRace = (cars: Car[]): Promise<WinnerResult | null> => {
 
     const onWin = (result: WinnerResult): void => {
       if (isWinnerFound) {
-      	return;
+        return;
       }
 
       isWinnerFound = true;
@@ -92,7 +95,7 @@ export const startRace = (cars: Car[]): Promise<WinnerResult | null> => {
     const onFinish = (): void => {
       finishedCount += 1;
       if (finishedCount === total && !isWinnerFound) {
-        resolve(null);
+        resolve(undefined);
       }
     };
 
