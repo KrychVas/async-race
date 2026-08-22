@@ -6,14 +6,16 @@
 
 type RenderFunction = () => Promise<void>;
 
-let registeredRender: RenderFunction | null = null;
+const state: { registeredRender?: RenderFunction } = {
+  registeredRender: undefined,
+};
 
 export const registerRender = (function_: RenderFunction): void => {
-  registeredRender = function_;
+  state.registeredRender = function_;
 };
 
 export const scheduleRender = async (): Promise<void> => {
-  if (registeredRender) {
-    await registeredRender();
+  if (state.registeredRender) {
+    await state.registeredRender();
   }
 };
