@@ -2,6 +2,8 @@ import { getCar } from './garage';
 import type { Car } from '../state/types';
 
 const WINNERS_URL = 'http://127.0.0.1:3000/winners';
+const DEFAULT_LIMIT = 10;
+const STATUS_NOT_FOUND = 404;
 
 export interface WinnerData {
   id: number;
@@ -24,18 +26,18 @@ export const deleteWinner = async (id: number): Promise<void> => {
 
 export const getWinners = async (
   page = 1,
-  limit = 10,
+  limit = DEFAULT_LIMIT,
   sort?: 'wins' | 'time',
-  order?: 'ASC' | 'DESC'
+  order?: 'ASC' | 'DESC',
 ): Promise<GetWinnersResponse> => {
   let url = `${WINNERS_URL}?_page=${page}&_limit=${limit}`;
   if (sort && order) {
     url += `&_sort=${sort}&_order=${order}`;
   }
 
-  const res = await fetch(url);
-  const totalCount = Number(res.headers.get('X-Total-Count') || 0);
-  const winnersData: WinnerData[] = await res.json();
+  const response = await fetch(url);
+  const totalCount = Number(response.headers.get('X-Total-Count') || 0);
+  const winnersData: WinnerData[] = await response.json();
 
   const winnersWithCars = await Promise.all(
     winnersData.map(async (winner) => {
@@ -44,43 +46,57 @@ export const getWinners = async (
         return { ...winner, car };
       } catch {
         // Автоматично видаляємо застарілий запис з сервера, якщо машина не існує
-        await deleteWinner(winner.id).catch(() => {});
-        return null;
+        try {
+          await deleteWinner(winner.id);
+        } catch {
+          // Ignore
+        }
+        return undefined;
       }
-    })
+    }),
   );
 
   // Відфільтровуємо видалені машини
-  const validWinners = winnersWithCars.filter((item): item is NonNullable<typeof item> => item !== null);
+  const validWinners = winnersWithCars.filter(
+    (item): item is NonNullable<typeof item> => item !== undefined,
+  );
 
   return { items: validWinners, totalCount };
 };
 
-export const getWinner = async (id: number): Promise<WinnerData | null> => {
-  const res = await fetch(`${WINNERS_URL}/${id}`);
-  if (res.status === 404) return null;
-  return res.json();
+export const getWinner = async (
+  id: number,
+): Promise<WinnerData | undefined> => {
+  const response = await fetch(`${WINNERS_URL}/${id}`);
+  if (response.status === STATUS_NOT_FOUND) return undefined;
+  return response.json();
 };
 
 export const createWinner = async (winner: WinnerData): Promise<WinnerData> => {
-  const res = await fetch(WINNERS_URL, {
+  const response = await fetch(WINNERS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(winner),
   });
-  return res.json();
+  return response.json();
 };
 
-export const updateWinner = async (id: number, winner: { wins: number; time: number }): Promise<WinnerData> => {
-  const res = await fetch(`${WINNERS_URL}/${id}`, {
+export const updateWinner = async (
+  id: number,
+  winner: { wins: number; time: number },
+): Promise<WinnerData> => {
+  const response = await fetch(`${WINNERS_URL}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(winner),
   });
-  return res.json();
+  return response.json();
 };
 
-export const saveWinnerResult = async (id: number, time: number): Promise<void> => {
+export const saveWinnerResult = async (
+  id: number,
+  time: number,
+): Promise<void> => {
   const existingWinner = await getWinner(id);
 
   if (existingWinner) {

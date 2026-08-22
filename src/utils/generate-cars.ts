@@ -1,5 +1,27 @@
-const BRANDS = ['Tesla', 'BMW', 'Mercedes', 'Audi', 'Ford', 'Toyota', 'Porsche', 'Honda', 'Nissan', 'Volvo'];
-const MODELS = ['Model S', 'X5', 'C-Class', 'A6', 'Mustang', 'Camry', '911', 'Civic', 'GT-R', 'XC90'];
+const BRANDS = [
+  'Tesla',
+  'BMW',
+  'Mercedes',
+  'Audi',
+  'Ford',
+  'Toyota',
+  'Porsche',
+  'Honda',
+  'Nissan',
+  'Volvo',
+];
+const MODELS = [
+  'Model S',
+  'X5',
+  'C-Class',
+  'A6',
+  'Mustang',
+  'Camry',
+  '911',
+  'Civic',
+  'GT-R',
+  'XC90',
+];
 
 export const getRandomColor = (): string => {
   const letters = '0123456789ABCDEF';

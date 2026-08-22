@@ -60,7 +60,7 @@ class AudioManager {
     this.bgMusic.volume = 0.3;
 
     if (wasPlaying && !this.isMuted) {
-      this.bgMusic.play().catch(() => {});
+      void this.bgMusic.play();
     }
   }
 
@@ -70,7 +70,7 @@ class AudioManager {
     if (this.isMuted) {
       this.bgMusic.pause();
     } else {
-      this.bgMusic.play().catch(() => {});
+      void this.bgMusic.play();
     }
 
     return this.isMuted;
@@ -78,7 +78,7 @@ class AudioManager {
 
   playBgMusic(): void {
     if (!this.isMuted) {
-      this.bgMusic.play().catch(() => {});
+      void this.bgMusic.play();
     }
   }
 
@@ -89,8 +89,9 @@ class AudioManager {
     if (!url) return;
 
     const audio = new Audio(url);
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
+    const SOUND_VOLUME = 0.5;
+    audio.volume = SOUND_VOLUME;
+    void audio.play();
   }
 }
 
