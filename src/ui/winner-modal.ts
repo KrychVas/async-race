@@ -1,3 +1,5 @@
+const MODAL_HIDE_TIMEOUT_MS = 5000;
+
 export const showWinnerModal = (name: string, time: number): void => {
   const existingModal = document.querySelector('.winner-modal');
   if (existingModal) existingModal.remove();
@@ -28,5 +30,5 @@ export const showWinnerModal = (name: string, time: number): void => {
 
   setTimeout(() => {
     modal.remove();
-  }, 5000);
+  }, MODAL_HIDE_TIMEOUT_MS);
 };

@@ -1,4 +1,4 @@
-export const renderCarSvg = (color: string, _carId: number = 0): string => {
+export const renderCarSvg = (color: string): string => {
   return `
     <svg width="80" height="35" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
       <g fill="${color}">

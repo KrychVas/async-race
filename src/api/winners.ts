@@ -51,7 +51,7 @@ export const getWinners = async (
         } catch {
           // Ignore
         }
-        return undefined;
+        return;
       }
     }),
   );
