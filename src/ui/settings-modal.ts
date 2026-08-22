@@ -2,13 +2,7 @@ import { createElement } from './html-builder';
 import { audioManager, TRACK_OPTIONS } from '../utils/audio';
 import { THEME_OPTIONS, getSavedTheme, setTheme } from '../utils/theme';
 
-export const showSettingsModal = (): void => {
-  const existing = document.querySelector('.settings-overlay');
-  if (existing) existing.remove();
-
-  const overlay = createElement({ tag: 'div', classNames: ['settings-overlay'] });
-
-  // Music Group
+const createMusicGroup = (): HTMLElement => {
   const musicSelect = createElement({
     tag: 'select',
     children: TRACK_OPTIONS.map((track) => {
@@ -28,7 +22,7 @@ export const showSettingsModal = (): void => {
     audioManager.setTrack(musicSelect.value);
   });
 
-  const musicGroup = createElement({
+  return createElement({
     tag: 'div',
     classNames: ['settings-group'],
     children: [
@@ -36,8 +30,9 @@ export const showSettingsModal = (): void => {
       musicSelect,
     ],
   });
+};
 
-  // Theme Group
+const createThemeGroup = (): HTMLElement => {
   const themeSelect = createElement({
     tag: 'select',
     children: THEME_OPTIONS.map((theme) => {
@@ -57,7 +52,7 @@ export const showSettingsModal = (): void => {
     setTheme(themeSelect.value);
   });
 
-  const themeGroup = createElement({
+  return createElement({
     tag: 'div',
     classNames: ['settings-group'],
     children: [
@@ -65,8 +60,14 @@ export const showSettingsModal = (): void => {
       themeSelect,
     ],
   });
+};
 
-  // Close Button
+export const showSettingsModal = (): void => {
+  const existing = document.querySelector('.settings-overlay');
+  if (existing) existing.remove();
+
+  const overlay = createElement({ tag: 'div', classNames: ['settings-overlay'] });
+
   const closeButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
@@ -82,8 +83,8 @@ export const showSettingsModal = (): void => {
     classNames: ['settings-modal'],
     children: [
       createElement({ tag: 'h2', textContent: '⚙️ Settings' }),
-      musicGroup,
-      themeGroup,
+      createMusicGroup(),
+      createThemeGroup(),
       closeButton,
     ],
   });
