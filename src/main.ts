@@ -1,9 +1,11 @@
-import './style.css';
 import { createElement } from './ui/html-builder';
 import { renderCarCard } from './views/garage/car-card';
 import { getCars, createCar, deleteCar, updateCar } from './api/garage';
 import { deleteWinner, saveWinnerResult } from './api/winners';
-import { handleGenerateCars, handleClearGarage } from './views/garage/garage-view';
+import {
+  handleGenerateCars,
+  handleClearGarage,
+} from './views/garage/garage-view';
 import { startRace, resetRace } from './views/garage/race-controller';
 import { showWinnerModal } from './ui/winner-modal';
 import { showSettingsModal } from './ui/settings-modal';
@@ -12,406 +14,547 @@ import { renderWinnersView } from './views/winners/winners-view';
 import { appState } from './state/app-state';
 import { CARS_PER_PAGE } from './constants';
 import { audioManager } from './utils/audio';
-import { initTheme } from './utils/theme';
 import { BODY_TYPES, getCarSvgContent } from './utils/car-mapping';
-import { registerRender } from './state/render-scheduler';
+import type { Car } from './state/types';
 
 const app = document.querySelector('#app');
-let selectedCarId: number | null = null;
-let currentView: 'garage' | 'winners' = 'garage';
 
-// Init theme on load
-initTheme();
-
-// Start bg music on first user interaction (browser autoplay policy)
-document.addEventListener(
-  'click',
-  () => {
-    audioManager.playBgMusic();
-  },
-  { once: true },
-);
-
-export const renderApp = async (): Promise<void> => {
-  if (!app) return;
-  app.replaceChildren();
-
-  // --- Main Title (ASYNC RACE) ---
-  const mainTitle = createElement({
+const renderTitle = (): HTMLElement =>
+  createElement({
     tag: 'h1',
     classNames: ['main-title'],
     textContent: 'ASYNC RACE',
   });
 
-  // --- Navigation ---
-  const garageNavButton = createElement({ tag: 'button', classNames: ['btn'], textContent: 'GARAGE' });
-  const winnersNavButton = createElement({ tag: 'button', classNames: ['btn'], textContent: 'WINNERS' });
-  const settingsNavButton = createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: '⚙️ SETTINGS' });
-  const muteNavButton = createElement({
+const buildNamedInput = (placeholder: string): HTMLInputElement =>
+  createElement({
+    tag: 'input',
+    attributes: { type: 'text', placeholder },
+  }) as HTMLInputElement;
+
+const buildModelSelect = (): HTMLSelectElement =>
+  createElement({
+    tag: 'select',
+    children: BODY_TYPES.map((bt) =>
+      createElement({
+        tag: 'option',
+        textContent: bt.name,
+        attributes: { value: bt.id },
+      }),
+    ),
+  }) as HTMLSelectElement;
+
+const buildColorButton = (color: string): HTMLButtonElement =>
+  createElement({
     tag: 'button',
-    classNames: ['btn', 'btn-warning'],
-    textContent: audioManager.isMutedState ? 'UNMUTE' : 'MUTE',
+    classNames: ['color-btn'],
+    attributes: {
+      style: `background-color: ${color};`,
+      title: 'Click to choose color',
+    },
   });
 
-  garageNavButton.addEventListener('click', () => {
-    currentView = 'garage';
-    renderApp();
+const buildPreviewBox = (): HTMLElement =>
+  createElement({
+    tag: 'div',
+    classNames: ['car-preview-box'],
+    attributes: { title: 'Click to choose color' },
   });
 
-  winnersNavButton.addEventListener('click', () => {
-    currentView = 'winners';
-    renderApp();
+const buildNavButton = (text: string, extraClass?: string): HTMLElement =>
+  createElement({
+    tag: 'button',
+    classNames: ['btn', ...(extraClass ? [extraClass] : [])],
+    textContent: text,
   });
 
-  settingsNavButton.addEventListener('click', () => {
-    showSettingsModal();
-  });
+const navigate = async (view: 'garage' | 'winners'): Promise<void> => {
+  appState.view = view;
+  await renderApp();
+};
 
+const carDisplayName = (
+  nameInput: HTMLInputElement,
+  modelSelect: HTMLSelectElement,
+  fallback: string,
+): string => {
+  const rawName = nameInput.value.trim();
+  const bodyType = modelSelect.value;
+  if (bodyType === 'auto') return rawName || fallback;
+  const brand =
+    BODY_TYPES.find((b) => b.id === bodyType)?.name.split(' ', 1)[0] ||
+    bodyType;
+  return brand ? `${brand} ${rawName}` : rawName || fallback;
+};
+
+const prefillBrand = (rawName: string, bodyType: string): string => {
+  if (bodyType === 'auto') return rawName;
+  const brand =
+    BODY_TYPES.find((b) => b.id === bodyType)?.name.split(' ', 1)[0] ||
+    bodyType;
+  if (!rawName.toLowerCase().includes(brand.toLowerCase()))
+    return `${brand} ${rawName}`;
+  return rawName;
+};
+
+const openColorModal = (
+  currentColor: string,
+  carName: () => string,
+  onApply: (color: string) => void,
+): void => {
+  openColorPickerModal({ currentColor, carName: carName(), onApply });
+};
+
+const makePickColor =
+  (
+    getColor: () => string,
+    getName: () => string,
+    onApply: (color: string) => void,
+    requiresSelection: boolean,
+  ): (() => void) =>
+  () => {
+    if (requiresSelection && !appState.selectedCarId) return;
+    openColorModal(getColor(), getName, onApply);
+  };
+
+const handleCreateSubmit = async (
+  nameInput: HTMLInputElement,
+  modelSelect: HTMLSelectElement,
+  getColor: () => string,
+): Promise<void> => {
+  const name = prefillBrand(nameInput.value.trim(), modelSelect.value);
+  if (!name) {
+    alert('Please enter a car name!');
+    return;
+  }
+  await createCar({ name, color: getColor() });
+  nameInput.value = '';
+  await renderApp();
+};
+
+const handleUpdateSubmit = async (
+  nameInput: HTMLInputElement,
+  modelSelect: HTMLSelectElement,
+  getColor: () => string,
+): Promise<void> => {
+  if (!appState.selectedCarId) return;
+  const name = prefillBrand(nameInput.value.trim(), modelSelect.value);
+  if (!name) {
+    alert('Car name cannot be empty!');
+    return;
+  }
+  await updateCar(appState.selectedCarId, { name, color: getColor() });
+  appState.selectedCarId = undefined;
+  await renderApp();
+};
+
+const handleGenerate = async (button: HTMLButtonElement): Promise<void> => {
+  button.setAttribute('disabled', 'true');
+  await handleGenerateCars();
+};
+
+const handleClear = async (button: HTMLButtonElement): Promise<void> => {
+  if (!confirm('Are you sure you want to delete all cars from the garage?'))
+    return;
+  button.setAttribute('disabled', 'true');
+  await handleClearGarage();
+};
+
+const handleRace = async (
+  raceButton: HTMLButtonElement,
+  resetButton: HTMLButtonElement,
+): Promise<void> => {
+  raceButton.setAttribute('disabled', 'true');
+  resetButton.setAttribute('disabled', 'true');
+  const { items: cars } = await getCars(appState.currentPage);
+  const winner = await startRace(cars);
+  if (winner) {
+    showWinnerModal(winner.car.name, winner.time);
+    await saveWinnerResult(winner.car.id, winner.time);
+  }
+  resetButton.removeAttribute('disabled');
+};
+
+const handleReset = async (
+  raceButton: HTMLButtonElement,
+  resetButton: HTMLButtonElement,
+): Promise<void> => {
+  resetButton.setAttribute('disabled', 'true');
+  const { items: cars } = await getCars(appState.currentPage);
+  await resetRace(cars);
+  raceButton.removeAttribute('disabled');
+};
+
+const refreshCarPreview = (
+  colorButton: HTMLElement,
+  previewBox: HTMLElement,
+  getColor: () => string,
+  getName: () => string,
+): void => {
+  colorButton.style.backgroundColor = getColor();
+  previewBox.innerHTML = getCarSvgContent(getName(), getColor());
+};
+
+interface FormControls {
+  nameInput: HTMLInputElement;
+  modelSelect: HTMLSelectElement;
+  colorButton: HTMLButtonElement;
+  previewBox: HTMLElement;
+  getColor: () => string;
+  setColor: (color: string) => void;
+  refreshPreview: () => void;
+  pickColor: () => void;
+}
+
+const createFormControls = (
+  placeholder: string,
+  defaultColor: string,
+  requiresSelection: boolean,
+): FormControls => {
+  let color = defaultColor;
+  const nameInput = buildNamedInput(placeholder);
+  const modelSelect = buildModelSelect();
+  const colorButton = buildColorButton(color);
+  const previewBox = buildPreviewBox();
+
+  const getColor = (): string => color;
+  const setColor = (value: string): void => {
+    color = value;
+  };
+  const getName = (): string => carDisplayName(nameInput, modelSelect, 'Tesla');
+  const refreshPreview = (): void =>
+    refreshCarPreview(colorButton, previewBox, getColor, getName);
+  const pickColor = makePickColor(
+    getColor,
+    getName,
+    (nextColor) => {
+      setColor(nextColor);
+      refreshPreview();
+    },
+    requiresSelection,
+  );
+
+  nameInput.addEventListener('input', refreshPreview);
+  modelSelect.addEventListener('change', refreshPreview);
+  refreshPreview();
+
+  return {
+    nameInput,
+    modelSelect,
+    colorButton,
+    previewBox,
+    getColor,
+    setColor,
+    refreshPreview,
+    pickColor,
+  };
+};
+
+const populateUpdateForm = (
+  car: Car,
+  nameInput: HTMLInputElement,
+  modelSelect: HTMLSelectElement,
+  colorButton: HTMLButtonElement,
+  updateButton: HTMLButtonElement,
+  setColor: (color: string) => void,
+  refreshPreview: () => void,
+): void => {
+  appState.selectedCarId = car.id;
+  setColor(car.color);
+  nameInput.value = car.name;
+  nameInput.disabled = false;
+  modelSelect.disabled = false;
+  colorButton.disabled = false;
+  updateButton.disabled = false;
+  refreshPreview();
+};
+
+const handleDeleteCar = async (car: Car, cars: Car[]): Promise<void> => {
+  await deleteCar(car.id);
+  try {
+    await deleteWinner(car.id);
+  } catch {
+    // Ignore missing winner record
+  }
+  if (appState.selectedCarId === car.id) appState.selectedCarId = undefined;
+  if (cars.length === 1 && appState.currentPage > 1) appState.currentPage -= 1;
+  await renderApp();
+};
+
+const buildErrorGarageView = (
+  updateControls: UpdateControls,
+  actionBar: HTMLElement,
+  trackContainer: HTMLElement,
+): HTMLElement => {
+  const title = createElement({
+    tag: 'h1',
+    textContent: 'Garage (Server connection failed)',
+  });
+  const controls = buildCreateControls();
+  return createElement({
+    tag: 'div',
+    children: [
+      controls,
+      updateControls.element,
+      actionBar,
+      title,
+      trackContainer,
+    ],
+  });
+};
+
+const renderNavigation = (): HTMLElement => {
+  const garageNavButton = buildNavButton('GARAGE');
+  const winnersNavButton = buildNavButton('WINNERS');
+  const settingsNavButton = buildNavButton('⚙️ SETTINGS', 'btn-primary');
+  const muteNavButton = buildNavButton(
+    audioManager.isMutedState ? 'UNMUTE' : 'MUTE',
+    'btn-warning',
+  );
+
+  garageNavButton.addEventListener('click', () => navigate('garage'));
+  winnersNavButton.addEventListener('click', () => navigate('winners'));
+  settingsNavButton.addEventListener('click', () => showSettingsModal());
   muteNavButton.addEventListener('click', () => {
     const isMuted = audioManager.toggleMute();
     muteNavButton.textContent = isMuted ? 'UNMUTE' : 'MUTE';
   });
 
-  const nav = createElement({
+  return createElement({
     tag: 'nav',
     classNames: ['header-nav'],
-    children: [garageNavButton, winnersNavButton, settingsNavButton, muteNavButton],
+    children: [
+      garageNavButton,
+      winnersNavButton,
+      settingsNavButton,
+      muteNavButton,
+    ],
   });
+};
 
-  // --- Winners view ---
-  if (currentView === 'winners') {
-    const winnersView = await renderWinnersView();
-    app.append(mainTitle, nav, winnersView);
-    return;
-  }
-
-  // --- Garage view ---
-
-  // Form: Create
-  let selectedCreateColor = '#e66465';
-  const createNameInput = createElement({ tag: 'input', attributes: { type: 'text', placeholder: 'Car name' } });
-  const createModelSelect = createElement({
-    tag: 'select',
-    children: BODY_TYPES.map((bt) =>
-      createElement({ tag: 'option', textContent: bt.name, attributes: { value: bt.id } }),
-    ),
-  }) as HTMLSelectElement;
-
-  const createColorButton = createElement({
+const buildCreateControls = (): HTMLElement => {
+  const {
+    nameInput,
+    modelSelect,
+    colorButton,
+    previewBox,
+    getColor,
+    pickColor,
+  } = createFormControls('Car name', '#e66465', false);
+  const createButton = createElement({
     tag: 'button',
-    classNames: ['color-btn'],
-    attributes: { style: `background-color: ${selectedCreateColor};`, title: 'Click to choose color' },
+    classNames: ['btn', 'btn-primary'],
+    textContent: 'CREATE',
   });
 
-  const createPreviewBox = createElement({
+  colorButton.addEventListener('click', pickColor);
+  previewBox.addEventListener('click', pickColor);
+  createButton.addEventListener('click', () =>
+    handleCreateSubmit(nameInput, modelSelect, getColor),
+  );
+
+  return createElement({
     tag: 'div',
-    classNames: ['car-preview-box'],
-    attributes: { title: 'Click to choose color' },
+    classNames: ['control-row'],
+    children: [nameInput, modelSelect, colorButton, previewBox, createButton],
   });
+};
 
-  const createButton = createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'CREATE' });
+interface UpdateControls {
+  element: HTMLElement;
+  populate: (car: Car) => void;
+}
 
-  const getCreateTestName = (): string => {
-    const rawName = (createNameInput as HTMLInputElement).value.trim();
-    const bodyType = createModelSelect.value;
-    const brandName = bodyType === 'auto' ? '' : BODY_TYPES.find((b) => b.id === bodyType)?.name.split(' ', 1)[0] || bodyType;
-    return brandName ? `${brandName} ${rawName}` : (rawName || 'Tesla');
-  };
-
-  const updateCreatePreview = (): void => {
-    createColorButton.style.backgroundColor = selectedCreateColor;
-    createPreviewBox.innerHTML = getCarSvgContent(getCreateTestName(), selectedCreateColor);
-  };
-
-  createNameInput.addEventListener('input', updateCreatePreview);
-  createModelSelect.addEventListener('change', updateCreatePreview);
-  updateCreatePreview();
-
-  const openCreateColorModal = (): void => {
-    openColorPickerModal({
-      currentColor: selectedCreateColor,
-      carName: getCreateTestName(),
-      onApply: (color) => {
-        selectedCreateColor = color;
-        updateCreatePreview();
-      },
-    });
-  };
-
-  createColorButton.addEventListener('click', openCreateColorModal);
-  createPreviewBox.addEventListener('click', openCreateColorModal);
-
-  createButton.addEventListener('click', async () => {
-    let name = (createNameInput as HTMLInputElement).value.trim();
-    const color = selectedCreateColor;
-    const bodyType = createModelSelect.value;
-
-    if (!name) {
-      alert('Please enter a car name!');
-      return;
-    }
-
-    if (bodyType !== 'auto') {
-      const brandName = BODY_TYPES.find((b) => b.id === bodyType)?.name.split(' ', 1)[0] || bodyType;
-      if (!name.toLowerCase().includes(brandName.toLowerCase())) {
-        name = `${brandName} ${name}`;
-      }
-    }
-
-    await createCar({ name, color });
-    (createNameInput as HTMLInputElement).value = '';
-    await renderApp();
-  });
-
-  // Form: Update
-  let selectedUpdateColor = '#3b82f6';
-  const updateNameInput = createElement({ tag: 'input', attributes: { type: 'text', placeholder: 'Select a car...' } });
-  const updateModelSelect = createElement({
-    tag: 'select',
-    children: BODY_TYPES.map((bt) =>
-      createElement({ tag: 'option', textContent: bt.name, attributes: { value: bt.id } }),
-    ),
-  }) as HTMLSelectElement;
-
-  const updateColorButton = createElement({
+const buildUpdateControls = (): UpdateControls => {
+  const {
+    nameInput,
+    modelSelect,
+    colorButton,
+    previewBox,
+    getColor,
+    setColor,
+    refreshPreview,
+    pickColor,
+  } = createFormControls('Select a car...', '#3b82f6', true);
+  const updateButton = createElement({
     tag: 'button',
-    classNames: ['color-btn'],
-    attributes: { style: `background-color: ${selectedUpdateColor};`, title: 'Click to choose color' },
+    classNames: ['btn', 'btn-primary'],
+    textContent: 'UPDATE',
   });
 
-  const updatePreviewBox = createElement({
+  colorButton.addEventListener('click', pickColor);
+  previewBox.addEventListener('click', pickColor);
+
+  const populate = (car: Car): void =>
+    populateUpdateForm(
+      car,
+      nameInput,
+      modelSelect,
+      colorButton,
+      updateButton,
+      setColor,
+      refreshPreview,
+    );
+
+  updateButton.addEventListener('click', () =>
+    handleUpdateSubmit(nameInput, modelSelect, getColor),
+  );
+
+  const element = createElement({
     tag: 'div',
-    classNames: ['car-preview-box'],
-    attributes: { title: 'Click to choose color' },
+    classNames: ['control-row'],
+    children: [nameInput, modelSelect, colorButton, previewBox, updateButton],
   });
 
-  const updateButton = createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'UPDATE' });
+  return { element, populate };
+};
 
-  const getUpdateTestName = (): string => {
-    const rawName = (updateNameInput as HTMLInputElement).value.trim();
-    const bodyType = updateModelSelect.value;
-    const brandName = bodyType === 'auto' ? '' : BODY_TYPES.find((b) => b.id === bodyType)?.name.split(' ', 1)[0] || bodyType;
-    return brandName ? `${brandName} ${rawName}` : (rawName || 'Tesla');
-  };
-
-  const updateUpdatePreview = (): void => {
-    updateColorButton.style.backgroundColor = selectedUpdateColor;
-    updatePreviewBox.innerHTML = getCarSvgContent(getUpdateTestName(), selectedUpdateColor);
-  };
-
-  updateNameInput.addEventListener('input', updateUpdatePreview);
-  updateModelSelect.addEventListener('change', updateUpdatePreview);
-  updateUpdatePreview();
-
-  const openUpdateColorModal = (): void => {
-    if (!selectedCarId) return;
-    openColorPickerModal({
-      currentColor: selectedUpdateColor,
-      carName: getUpdateTestName(),
-      onApply: (color) => {
-        selectedUpdateColor = color;
-        updateUpdatePreview();
-      },
-    });
-  };
-
-  updateColorButton.addEventListener('click', openUpdateColorModal);
-  updatePreviewBox.addEventListener('click', openUpdateColorModal);
-
-  if (!selectedCarId) {
-    (updateNameInput as HTMLInputElement).disabled = true;
-    updateModelSelect.disabled = true;
-    (updateColorButton as HTMLButtonElement).disabled = true;
-    (updateButton as HTMLButtonElement).disabled = true;
-  }
-
-  updateButton.addEventListener('click', async () => {
-    if (!selectedCarId) return;
-    let name = (updateNameInput as HTMLInputElement).value.trim();
-    const color = selectedUpdateColor;
-    const bodyType = updateModelSelect.value;
-
-    if (!name) {
-      alert('Car name cannot be empty!');
-      return;
-    }
-
-    if (bodyType !== 'auto') {
-      const brandName = BODY_TYPES.find((b) => b.id === bodyType)?.name.split(' ', 1)[0] || bodyType;
-      if (!name.toLowerCase().includes(brandName.toLowerCase())) {
-        name = `${brandName} ${name}`;
-      }
-    }
-
-    await updateCar(selectedCarId, { name, color });
-    selectedCarId = null;
-    await renderApp();
+const buildActionBar = (): HTMLElement => {
+  const raceButton = createElement({
+    tag: 'button',
+    classNames: ['btn', 'btn-primary'],
+    textContent: 'RACE',
   });
-
-  // Generate button
-  const generateButton = createElement({ tag: 'button', classNames: ['btn'], textContent: 'GENERATE CARS' });
-  generateButton.addEventListener('click', async () => {
-    generateButton.setAttribute('disabled', 'true');
-    await handleGenerateCars();
-  });
-
-  // Clear Garage button
-  const clearGarageButton = createElement({ tag: 'button', classNames: ['btn', 'btn-danger'], textContent: 'CLEAR GARAGE' });
-  clearGarageButton.addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to delete all cars from the garage?')) {
-    	return;
-    }
-
-    clearGarageButton.setAttribute('disabled', 'true');
-    await handleClearGarage();
-  });
-
-  // RACE / RESET buttons
-  const raceButton = createElement({ tag: 'button', classNames: ['btn', 'btn-primary'], textContent: 'RACE' });
   const resetButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-warning'],
     textContent: 'RESET',
     attributes: { disabled: 'true' },
   });
-
-  raceButton.addEventListener('click', async () => {
-    raceButton.setAttribute('disabled', 'true');
-    resetButton.setAttribute('disabled', 'true');
-
-    const { items: cars } = await getCars(appState.currentPage);
-    const winner = await startRace(cars);
-
-    if (winner) {
-      showWinnerModal(winner.car.name, winner.time);
-      await saveWinnerResult(winner.car.id, winner.time);
-    }
-
-    resetButton.removeAttribute('disabled');
+  const generateButton = createElement({
+    tag: 'button',
+    classNames: ['btn'],
+    textContent: 'GENERATE CARS',
+  });
+  const clearButton = createElement({
+    tag: 'button',
+    classNames: ['btn', 'btn-danger'],
+    textContent: 'CLEAR GARAGE',
   });
 
-  resetButton.addEventListener('click', async () => {
-    resetButton.setAttribute('disabled', 'true');
+  generateButton.addEventListener('click', () =>
+    handleGenerate(generateButton),
+  );
+  clearButton.addEventListener('click', () => handleClear(clearButton));
+  raceButton.addEventListener('click', () =>
+    handleRace(raceButton, resetButton),
+  );
+  resetButton.addEventListener('click', () =>
+    handleReset(raceButton, resetButton),
+  );
 
-    const { items: cars } = await getCars(appState.currentPage);
-    await resetRace(cars);
-
-    raceButton.removeAttribute('disabled');
-  });
-
-  const controls = createElement({
+  return createElement({
     tag: 'div',
-    classNames: ['controls-panel'],
-    children: [
-      createElement({
-        tag: 'div',
-        classNames: ['control-row'],
-        children: [createNameInput, createModelSelect, createColorButton, createPreviewBox, createButton],
-      }),
-      createElement({
-        tag: 'div',
-        classNames: ['control-row'],
-        children: [updateNameInput, updateModelSelect, updateColorButton, updatePreviewBox, updateButton],
-      }),
-      createElement({
-        tag: 'div',
-        classNames: ['control-row'],
-        children: [raceButton, resetButton, generateButton, clearGarageButton],
-      }),
-    ],
+    classNames: ['control-row'],
+    children: [raceButton, resetButton, generateButton, clearButton],
+  });
+};
+
+const buildPagination = (totalPages: number): HTMLElement => {
+  const previousButton = createElement({
+    tag: 'button',
+    classNames: ['btn'],
+    textContent: 'PREV',
+    attributes: appState.currentPage <= 1 ? { disabled: 'true' } : {},
+  });
+  const nextButton = createElement({
+    tag: 'button',
+    classNames: ['btn'],
+    textContent: 'NEXT',
+    attributes: appState.currentPage >= totalPages ? { disabled: 'true' } : {},
   });
 
-  const trackContainer = createElement({ tag: 'div', classNames: ['track-container'] });
+  previousButton.addEventListener('click', async () => {
+    if (appState.currentPage <= 1) return;
+    appState.currentPage -= 1;
+    await renderApp();
+  });
 
-  try {
-    const { items: cars, totalCount } = await getCars(appState.currentPage);
-    appState.totalCars = totalCount;
+  nextButton.addEventListener('click', async () => {
+    if (appState.currentPage >= totalPages) return;
+    appState.currentPage += 1;
+    await renderApp();
+  });
 
-    const totalPages = Math.ceil(totalCount / CARS_PER_PAGE) || 1;
+  return createElement({
+    tag: 'div',
+    classNames: ['control-row'],
+    children: [previousButton, nextButton],
+  });
+};
 
-    const title = createElement({ tag: 'h1', textContent: `Garage (${totalCount})` });
-    const pageSubtitle = createElement({
-      tag: 'h2',
-      textContent: `Page #${appState.currentPage} / ${totalPages}`,
-    });
+const renderCarCards = (
+  cars: Car[],
+  trackContainer: HTMLElement,
+  updateControls: UpdateControls,
+): void => {
+  for (const car of cars) {
+    const carCard = renderCarCard(car);
 
-    const previousButton = createElement({
-      tag: 'button',
-      classNames: ['btn'],
-      textContent: 'PREV',
-      attributes: appState.currentPage <= 1 ? { disabled: 'true' } : {},
-    });
+    const removeButton =
+      carCard.querySelector<HTMLElement>(':scope .btn-danger');
+    removeButton?.addEventListener('click', () => handleDeleteCar(car, cars));
 
-    const nextButton = createElement({
-      tag: 'button',
-      classNames: ['btn'],
-      textContent: 'NEXT',
-      attributes: appState.currentPage >= totalPages ? { disabled: 'true' } : {},
-    });
+    const selectButton = carCard.querySelector<HTMLButtonElement>(
+      ':scope .car-header .btn:not(.btn-danger)',
+    );
+    selectButton?.addEventListener('click', () => updateControls.populate(car));
 
-    previousButton.addEventListener('click', async () => {
-      if (!(appState.currentPage > 1)) {
-      	return;
-      }
-
-      appState.currentPage -= 1;
-      await renderApp();
-    });
-
-    nextButton.addEventListener('click', async () => {
-      if (!(appState.currentPage < totalPages)) {
-      	return;
-      }
-
-      appState.currentPage += 1;
-      await renderApp();
-    });
-
-    const paginationPanel = createElement({
-      tag: 'div',
-      classNames: ['control-row'],
-      children: [previousButton, nextButton],
-    });
-
-    cars.forEach((car) => {
-      const carCard = renderCarCard(car);
-
-      // REMOVE with cascading winner delete
-      const removeButton = carCard.querySelector('.btn-danger');
-      removeButton?.addEventListener('click', async () => {
-        await deleteCar(car.id);
-        await deleteWinner(car.id).catch(() => {});
-
-        if (selectedCarId === car.id) selectedCarId = null;
-
-        if (cars.length === 1 && appState.currentPage > 1) {
-          appState.currentPage -= 1;
-        }
-        await renderApp();
-      });
-
-      // SELECT
-      const selectButton = carCard.querySelector<HTMLButtonElement>('.car-header .btn:not(.btn-danger)');
-      selectButton?.addEventListener('click', () => {
-        selectedCarId = car.id;
-        (updateNameInput as HTMLInputElement).disabled = false;
-        updateModelSelect.disabled = false;
-        (updateColorButton as HTMLButtonElement).disabled = false;
-        (updateButton as HTMLButtonElement).disabled = false;
-        (updateNameInput as HTMLInputElement).value = car.name;
-        selectedUpdateColor = car.color;
-        updateUpdatePreview();
-      });
-
-      trackContainer.append(carCard);
-    });
-
-    app.append(mainTitle, nav, controls, title, pageSubtitle, paginationPanel, trackContainer);
-  } catch {
-    const title = createElement({ tag: 'h1', textContent: 'Garage (Server connection failed)' });
-    app.append(mainTitle, nav, controls, title, trackContainer);
+    trackContainer.append(carCard);
   }
 };
 
-registerRender(renderApp);
-renderApp();
+const buildGarageView = async (): Promise<HTMLElement> => {
+  const updateControls = buildUpdateControls();
+  const actionBar = buildActionBar();
+  const trackContainer = createElement({
+    tag: 'div',
+    classNames: ['track-container'],
+  });
+
+  let cars: Car[] = [];
+  try {
+    const response = await getCars(appState.currentPage);
+    cars = response.items;
+    appState.totalCars = response.totalCount;
+  } catch {
+    return buildErrorGarageView(updateControls, actionBar, trackContainer);
+  }
+
+  const totalPages = Math.ceil(appState.totalCars / CARS_PER_PAGE) || 1;
+  const controls = buildCreateControls();
+  const title = createElement({
+    tag: 'h1',
+    textContent: `Garage (${appState.totalCars})`,
+  });
+  const pageSubtitle = createElement({
+    tag: 'h2',
+    textContent: `Page #${appState.currentPage} / ${totalPages}`,
+  });
+  const pagination = buildPagination(totalPages);
+  renderCarCards(cars, trackContainer, updateControls);
+
+  return createElement({
+    tag: 'div',
+    children: [
+      controls,
+      updateControls.element,
+      actionBar,
+      title,
+      pageSubtitle,
+      pagination,
+      trackContainer,
+    ],
+  });
+};
+
+export const renderApp = async (): Promise<void> => {
+  if (!app) return;
+  app.replaceChildren();
+
+  const view =
+    appState.view === 'winners'
+      ? await renderWinnersView()
+      : await buildGarageView();
+  app.append(renderTitle(), renderNavigation(), view);
+};
