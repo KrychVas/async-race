@@ -1,139 +1,154 @@
 import { createElement } from '../../ui/html-builder';
-import { getWinners } from '../../api/winners';
+import { getWinners, type Winner } from '../../api/winners';
 import { getCarSvgContent } from '../../utils/car-mapping';
+import { appState } from '../../state/app-state';
+import { WINNERS_PER_PAGE } from '../../constants';
 
-let winnersPage = 1;
-let sortField: 'wins' | 'time' | undefined;
-let sortOrder: 'ASC' | 'DESC' = 'ASC';
+const UNKNOWN_NAME = 'Unknown';
+const UNKNOWN_COLOR = '#ffffff';
 
-export const renderWinnersView = async (): Promise<HTMLElement> => {
-  const { items: winners, totalCount } = await getWinners(winnersPage, 10, sortField, sortOrder);
-  const totalPages = Math.ceil(totalCount / 10) || 1;
+const sortIndicator = (field: 'wins' | 'time' | undefined): string => {
+  if (appState.winnersSortBy !== field) return '↕';
+  return appState.winnersSortOrder === 'ASC' ? '▲' : '▼';
+};
 
-  // Header row with sorting toggles
-  const winsHeader = createElement({
+const toggleSort = (field: 'wins' | 'time'): void => {
+  if (appState.winnersSortBy === field) {
+    appState.winnersSortOrder =
+      appState.winnersSortOrder === 'ASC' ? 'DESC' : 'ASC';
+  } else {
+    appState.winnersSortBy = field;
+    appState.winnersSortOrder = 'ASC';
+  }
+};
+
+const buildSortableHeader = (
+  text: string,
+  field: 'wins' | 'time',
+): HTMLElement => {
+  const header = createElement({
     tag: 'th',
     classNames: ['sortable-header'],
-    textContent: `Wins ${sortField === 'wins' ? (sortOrder === 'ASC' ? '▲' : '▼') : '↕'}`,
+    textContent: `${text} ${sortIndicator(field)}`,
   });
 
-  const timeHeader = createElement({
-    tag: 'th',
-    classNames: ['sortable-header'],
-    textContent: `Best time (s) ${sortField === 'time' ? (sortOrder === 'ASC' ? '▲' : '▼') : '↕'}`,
-  });
-
-  winsHeader.addEventListener('click', async () => {
-    if (sortField === 'wins') {
-      sortOrder = sortOrder === 'ASC' ? 'DESC' : 'ASC';
-    } else {
-      sortField = 'wins';
-      sortOrder = 'ASC';
-    }
+  header.addEventListener('click', async () => {
+    toggleSort(field);
     await refreshWinners();
   });
 
-  timeHeader.addEventListener('click', async () => {
-    if (sortField === 'time') {
-      sortOrder = sortOrder === 'ASC' ? 'DESC' : 'ASC';
-    } else {
-      sortField = 'time';
-      sortOrder = 'ASC';
-    }
-    await refreshWinners();
-  });
+  return header;
+};
 
-  const tableHeader = createElement({
+const buildHeaderRow = (): HTMLElement =>
+  createElement({
     tag: 'tr',
     children: [
       createElement({ tag: 'th', textContent: 'Number' }),
       createElement({ tag: 'th', textContent: 'Car' }),
       createElement({ tag: 'th', textContent: 'Name' }),
-      winsHeader,
-      timeHeader,
+      buildSortableHeader('Wins', 'wins'),
+      buildSortableHeader('Best time (s)', 'time'),
     ],
   });
 
-  // Table rows
-  const rows = winners.map((winner, index) => {
-    const globalIndex = (winnersPage - 1) * 10 + index + 1;
-    const svgWrapper = createElement({ tag: 'div' });
-    svgWrapper.innerHTML = getCarSvgContent(winner.car?.name || 'Unknown', winner.car?.color || '#ffffff');
+const buildWinnerRow = (winner: Winner, index: number): HTMLElement => {
+  const globalIndex = (appState.winnersPage - 1) * WINNERS_PER_PAGE + index + 1;
+  const svgWrapper = createElement({ tag: 'div' });
+  svgWrapper.innerHTML = getCarSvgContent(
+    winner.car?.name || UNKNOWN_NAME,
+    winner.car?.color || UNKNOWN_COLOR,
+  );
 
-    return createElement({
-      tag: 'tr',
-      children: [
-        createElement({ tag: 'td', textContent: `${globalIndex}` }),
-        createElement({ tag: 'td', children: [svgWrapper] }),
-        createElement({ tag: 'td', textContent: winner.car?.name || 'Unknown' }),
-        createElement({ tag: 'td', textContent: `${winner.wins}` }),
-        createElement({ tag: 'td', textContent: `${winner.time}` }),
-      ],
-    });
+  return createElement({
+    tag: 'tr',
+    children: [
+      createElement({ tag: 'td', textContent: `${globalIndex}` }),
+      createElement({ tag: 'td', children: [svgWrapper] }),
+      createElement({
+        tag: 'td',
+        textContent: winner.car?.name || UNKNOWN_NAME,
+      }),
+      createElement({ tag: 'td', textContent: `${winner.wins}` }),
+      createElement({ tag: 'td', textContent: `${winner.time}` }),
+    ],
   });
+};
 
-  const table = createElement({
+const buildRows = (winners: Winner[]): HTMLElement[] =>
+  winners.map((winner, index) => buildWinnerRow(winner, index));
+
+const buildTable = (winners: Winner[]): HTMLElement =>
+  createElement({
     tag: 'table',
     classNames: ['winners-table'],
-    children: [tableHeader, ...rows],
+    children: [buildHeaderRow(), ...buildRows(winners)],
   });
 
-  // Navigation
+const buildPagination = (totalPages: number): HTMLElement => {
   const previousButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'PREV',
-    attributes: winnersPage <= 1 ? { disabled: 'true' } : {},
+    attributes: appState.winnersPage <= 1 ? { disabled: 'true' } : {},
   });
 
   const nextButton = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'NEXT',
-    attributes: winnersPage >= totalPages ? { disabled: 'true' } : {},
+    attributes: appState.winnersPage >= totalPages ? { disabled: 'true' } : {},
   });
 
   previousButton.addEventListener('click', async () => {
-    if (!(winnersPage > 1)) {
-    	return;
-    }
+    if (appState.winnersPage <= 1) return;
 
-    winnersPage -= 1;
-    await refreshWinners();
+    appState.winnersPage -= 1;
+    await refreshWinners();
   });
 
   nextButton.addEventListener('click', async () => {
-    if (!(winnersPage < totalPages)) {
-    	return;
-    }
+    if (appState.winnersPage >= totalPages) return;
 
-    winnersPage += 1;
-    await refreshWinners();
+    appState.winnersPage += 1;
+    await refreshWinners();
   });
 
-  const pagination = createElement({
+  return createElement({
     tag: 'div',
     classNames: ['pagination-controls'],
     children: [previousButton, nextButton],
   });
+};
+
+export const renderWinnersView = async (): Promise<HTMLElement> => {
+  const { items: winners, totalCount } = await getWinners(
+    appState.winnersPage,
+    WINNERS_PER_PAGE,
+    appState.winnersSortBy,
+    appState.winnersSortOrder,
+  );
+  const totalPages = Math.ceil(totalCount / WINNERS_PER_PAGE) || 1;
 
   return createElement({
     tag: 'div',
     classNames: ['winners-view'],
     children: [
       createElement({ tag: 'h2', textContent: `Winners (${totalCount})` }),
-      createElement({ tag: 'h3', textContent: `Page #${winnersPage}` }),
-      table,
-      pagination,
+      createElement({
+        tag: 'h3',
+        textContent: `Page #${appState.winnersPage}`,
+      }),
+      buildTable(winners),
+      buildPagination(totalPages),
     ],
   });
 };
 
 const refreshWinners = async (): Promise<void> => {
-  const container = document.querySelector('.winners-view');
-  if (container && container.parentElement) {
-    const parent = container.parentElement;
-    container.remove();
-    parent.append(await renderWinnersView());
-  }
+  const container = document.querySelector<HTMLElement>('.winners-view');
+  if (!container?.parentElement) return;
+
+  container.remove();
+  container.parentElement.append(await renderWinnersView());
 };
