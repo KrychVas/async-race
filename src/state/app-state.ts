@@ -9,6 +9,10 @@ export interface AppState {
   cars: Car[];
   totalCars: number;
   view: 'garage' | 'winners';
+  selectedCarId?: number;
+  winnersPage: number;
+  winnersSortBy?: 'wins' | 'time';
+  winnersSortOrder: 'ASC' | 'DESC';
 }
 
 export const appState: AppState = {
@@ -16,4 +20,8 @@ export const appState: AppState = {
   cars: [],
   totalCars: 0,
   view: 'garage',
+  selectedCarId: undefined,
+  winnersPage: 1,
+  winnersSortBy: undefined,
+  winnersSortOrder: 'ASC',
 };
