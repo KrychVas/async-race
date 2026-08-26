@@ -529,3 +529,12 @@ select:focus {
 .custom-select-option.selected {
   background-color: #2563eb;
 }
+
+/* Page Background Setup */
+body {
+  background-image: var(--bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  transition: background-image 0.3s ease-in-out;
+}
