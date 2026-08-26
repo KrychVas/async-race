@@ -13,7 +13,11 @@ type BreakEffect = 'crash' | 'pedestrian' | 'police';
 const EFFECT_TYPES: BreakEffect[] = ['crash', 'pedestrian', 'police'];
 const EFFECT_COUNT = EFFECT_TYPES.length;
 
-const showEffect = (carCard: HTMLElement, carId: number, effect: BreakEffect): void => {
+const showEffect = (
+  carCard: HTMLElement,
+  carId: number,
+  effect: BreakEffect,
+): void => {
   const container = carCard.querySelector(`#effect-${carId}`);
   if (!container) return;
   if (effect === 'crash') {
@@ -23,7 +27,8 @@ const showEffect = (carCard: HTMLElement, carId: number, effect: BreakEffect): v
     container.innerHTML = '<span class="break-effect">🚶 Pedestrian!</span>';
     audioManager.playSound('honk');
   } else {
-    container.innerHTML = '<span class="break-effect">🚓 Stopped by Police</span>';
+    container.innerHTML =
+      '<span class="break-effect">🚓 Stopped by Police</span>';
     audioManager.playSound('police');
   }
 };
@@ -83,44 +88,72 @@ const setupEngineControls = (
   });
 };
 
-const createTrackElement = (carId: number): HTMLElement => createElement({
-  tag: 'div',
-  classNames: ['track'],
-  children: [
-    createElement({ tag: 'div', classNames: ['finish-line'] }),
-    createElement({ tag: 'div', classNames: ['car-skid-mark'], attributes: { id: `skid-${carId}` } }),
-    createElement({ tag: 'div', classNames: ['car-icon'], attributes: { id: `car-${carId}` } }),
-    createElement({ tag: 'div', classNames: ['effect-container'], attributes: { id: `effect-${carId}` } }),
-  ],
-});
+const createTrackElement = (carId: number): HTMLElement =>
+  createElement({
+    tag: 'div',
+    classNames: ['track'],
+    children: [
+      createElement({ tag: 'div', classNames: ['finish-line'] }),
+      createElement({
+        tag: 'div',
+        classNames: ['car-skid-mark'],
+        attributes: { id: `skid-${carId}` },
+      }),
+      createElement({
+        tag: 'div',
+        classNames: ['car-icon'],
+        attributes: { id: `car-${carId}` },
+      }),
+      createElement({
+        tag: 'div',
+        classNames: ['effect-container'],
+        attributes: { id: `effect-${carId}` },
+      }),
+    ],
+  });
+
+const buildHeader = (car: Car): HTMLElement =>
+  createElement({
+    tag: 'div',
+    classNames: ['car-header'],
+    children: [
+      createElement({
+        tag: 'button',
+        classNames: ['btn'],
+        textContent: 'SELECT',
+      }),
+      createElement({
+        tag: 'button',
+        classNames: ['btn', 'btn-danger'],
+        textContent: 'REMOVE',
+      }),
+      createElement({ tag: 'span', textContent: car.name }),
+    ],
+  });
 
 export const renderCarCard = (car: Car): HTMLElement => {
   const buttonA = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'A',
-  }) as HTMLButtonElement;
+  });
   const buttonB = createElement({
     tag: 'button',
     classNames: ['btn', 'btn-warning'],
     textContent: 'B',
     attributes: { disabled: 'true' },
-  }) as HTMLButtonElement;
+  });
 
   const carCard = createElement({
     tag: 'div',
     classNames: ['car-row'],
     children: [
+      buildHeader(car),
       createElement({
         tag: 'div',
         classNames: ['car-header'],
-        children: [
-          createElement({ tag: 'button', classNames: ['btn'], textContent: 'SELECT' }),
-          createElement({ tag: 'button', classNames: ['btn', 'btn-danger'], textContent: 'REMOVE' }),
-          createElement({ tag: 'span', textContent: car.name }),
-        ],
+        children: [buttonA, buttonB],
       }),
-      createElement({ tag: 'div', classNames: ['car-header'], children: [buttonA, buttonB] }),
       createTrackElement(car.id),
     ],
   });
