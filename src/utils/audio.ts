@@ -40,6 +40,18 @@ class AudioManager {
     this.soundUrls.set('honk', honkSoundUrl);
   }
 
+  private bindAutoplayListeners(attemptPlay: () => void): void {
+    document.addEventListener('click', attemptPlay);
+    document.addEventListener('keydown', attemptPlay);
+    document.addEventListener('touchstart', attemptPlay);
+  }
+
+  private removeAutoplayListeners(attemptPlay: () => void): void {
+    document.removeEventListener('click', attemptPlay);
+    document.removeEventListener('keydown', attemptPlay);
+    document.removeEventListener('touchstart', attemptPlay);
+  }
+
   get isMutedState(): boolean {
     return this.isMuted;
   }
@@ -70,6 +82,7 @@ class AudioManager {
     if (this.isMuted) {
       this.bgMusic.pause();
     } else {
+      this.bgMusic.muted = false;
       void this.bgMusic.play();
     }
 
@@ -77,9 +90,33 @@ class AudioManager {
   }
 
   playBgMusic(): void {
-    if (!this.isMuted) {
-      void this.bgMusic.play();
-    }
+    if (this.isMuted) return;
+
+    const resume = (): void => {
+      this.bgMusic.muted = false;
+      void this.bgMusic
+        .play()
+        .then(() => {
+          this.removeAutoplayListeners(resume);
+        })
+        .catch(() => {
+          // Still blocked: keep waiting for the next user gesture
+        });
+    };
+
+    void this.bgMusic
+      .play()
+      .then(() => {
+        this.removeAutoplayListeners(resume);
+      })
+      .catch(() => {
+        // Sound autoplay is blocked: start muted right away,
+        // then unmute on the first user gesture
+        this.bgMusic.muted = true;
+        void this.bgMusic.play();
+      });
+
+    this.bindAutoplayListeners(resume);
   }
 
   playSound(key: SoundKey): void {

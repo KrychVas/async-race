@@ -6,14 +6,8 @@ import { audioManager } from './utils/audio';
 
 initTheme();
 
-// Запуск фонової музики після першої взаємодії (політика автозапуску браузера)
-document.addEventListener(
-  'click',
-  () => {
-    audioManager.playBgMusic();
-  },
-  { once: true },
-);
+// Фонова музика одразу після завантаження сторінки
+audioManager.playBgMusic();
 
 registerRender(renderApp);
 await renderApp();
