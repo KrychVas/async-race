@@ -16,6 +16,7 @@ import { CARS_PER_PAGE } from './constants';
 import { audioManager } from './utils/audio';
 import { BODY_TYPES, getCarSvgContent } from './utils/car-mapping';
 import type { Car } from './state/types';
+import { CustomSelect } from './ui/custom-select';
 
 const app = document.querySelector('#app');
 
@@ -30,19 +31,7 @@ const buildNamedInput = (placeholder: string): HTMLInputElement =>
   createElement({
     tag: 'input',
     attributes: { type: 'text', placeholder },
-  }) as HTMLInputElement;
-
-const buildModelSelect = (): HTMLSelectElement =>
-  createElement({
-    tag: 'select',
-    children: BODY_TYPES.map((bt) =>
-      createElement({
-        tag: 'option',
-        textContent: bt.name,
-        attributes: { value: bt.id },
-      }),
-    ),
-  }) as HTMLSelectElement;
+  });
 
 const buildColorButton = (color: string): HTMLButtonElement =>
   createElement({
@@ -75,11 +64,11 @@ const navigate = async (view: 'garage' | 'winners'): Promise<void> => {
 
 const carDisplayName = (
   nameInput: HTMLInputElement,
-  modelSelect: HTMLSelectElement,
+  modelSelect: CustomSelect,
   fallback: string,
 ): string => {
   const rawName = nameInput.value.trim();
-  const bodyType = modelSelect.value;
+  const bodyType = modelSelect.getValue();
   if (bodyType === 'auto') return rawName || fallback;
   const brand =
     BODY_TYPES.find((b) => b.id === bodyType)?.name.split(' ', 1)[0] ||
@@ -119,10 +108,10 @@ const makePickColor =
 
 const handleCreateSubmit = async (
   nameInput: HTMLInputElement,
-  modelSelect: HTMLSelectElement,
+  modelSelect: CustomSelect,
   getColor: () => string,
 ): Promise<void> => {
-  const name = prefillBrand(nameInput.value.trim(), modelSelect.value);
+  const name = prefillBrand(nameInput.value.trim(), modelSelect.getValue());
   if (!name) {
     alert('Please enter a car name!');
     return;
@@ -134,11 +123,11 @@ const handleCreateSubmit = async (
 
 const handleUpdateSubmit = async (
   nameInput: HTMLInputElement,
-  modelSelect: HTMLSelectElement,
+  modelSelect: CustomSelect,
   getColor: () => string,
 ): Promise<void> => {
   if (!appState.selectedCarId) return;
-  const name = prefillBrand(nameInput.value.trim(), modelSelect.value);
+  const name = prefillBrand(nameInput.value.trim(), modelSelect.getValue());
   if (!name) {
     alert('Car name cannot be empty!');
     return;
@@ -197,7 +186,7 @@ const refreshCarPreview = (
 
 interface FormControls {
   nameInput: HTMLInputElement;
-  modelSelect: HTMLSelectElement;
+  modelSelect: CustomSelect;
   colorButton: HTMLButtonElement;
   previewBox: HTMLElement;
   getColor: () => string;
@@ -213,13 +202,14 @@ const createFormControls = (
 ): FormControls => {
   let color = defaultColor;
   const nameInput = buildNamedInput(placeholder);
-  const modelSelect = buildModelSelect();
+  const modelSelect = new CustomSelect('auto', color, () => refreshPreview());
   const colorButton = buildColorButton(color);
   const previewBox = buildPreviewBox();
 
   const getColor = (): string => color;
   const setColor = (value: string): void => {
     color = value;
+    modelSelect.render(value);
   };
   const getName = (): string => carDisplayName(nameInput, modelSelect, 'Tesla');
   const refreshPreview = (): void =>
@@ -235,7 +225,6 @@ const createFormControls = (
   );
 
   nameInput.addEventListener('input', refreshPreview);
-  modelSelect.addEventListener('change', refreshPreview);
   refreshPreview();
 
   return {
@@ -253,7 +242,6 @@ const createFormControls = (
 const populateUpdateForm = (
   car: Car,
   nameInput: HTMLInputElement,
-  modelSelect: HTMLSelectElement,
   colorButton: HTMLButtonElement,
   updateButton: HTMLButtonElement,
   setColor: (color: string) => void,
@@ -263,7 +251,6 @@ const populateUpdateForm = (
   setColor(car.color);
   nameInput.value = car.name;
   nameInput.disabled = false;
-  modelSelect.disabled = false;
   colorButton.disabled = false;
   updateButton.disabled = false;
   refreshPreview();
@@ -356,7 +343,13 @@ const buildCreateControls = (): HTMLElement => {
   return createElement({
     tag: 'div',
     classNames: ['control-row'],
-    children: [nameInput, modelSelect, colorButton, previewBox, createButton],
+    children: [
+      nameInput,
+      modelSelect.getElement(),
+      colorButton,
+      previewBox,
+      createButton,
+    ],
   });
 };
 
@@ -365,48 +358,67 @@ interface UpdateControls {
   populate: (car: Car) => void;
 }
 
-const buildUpdateControls = (): UpdateControls => {
-  const {
-    nameInput,
-    modelSelect,
-    colorButton,
-    previewBox,
-    getColor,
-    setColor,
-    refreshPreview,
-    pickColor,
-  } = createFormControls('Select a car...', '#3b82f6', true);
-  const updateButton = createElement({
+const buildUpdateButton = (): HTMLButtonElement =>
+  createElement({
     tag: 'button',
     classNames: ['btn', 'btn-primary'],
     textContent: 'UPDATE',
   });
 
-  colorButton.addEventListener('click', pickColor);
-  previewBox.addEventListener('click', pickColor);
+const buildUpdateRow = (
+  nameInput: HTMLInputElement,
+  modelSelect: CustomSelect,
+  colorButton: HTMLButtonElement,
+  previewBox: HTMLElement,
+  updateButton: HTMLButtonElement,
+): HTMLElement =>
+  createElement({
+    tag: 'div',
+    classNames: ['control-row'],
+    children: [
+      nameInput,
+      modelSelect.getElement(),
+      colorButton,
+      previewBox,
+      updateButton,
+    ],
+  });
+
+const buildUpdateControls = (): UpdateControls => {
+  const controls = createFormControls('Select a car...', '#3b82f6', true);
+  const updateButton = buildUpdateButton();
+
+  controls.colorButton.addEventListener('click', controls.pickColor);
+  controls.previewBox.addEventListener('click', controls.pickColor);
 
   const populate = (car: Car): void =>
     populateUpdateForm(
       car,
-      nameInput,
-      modelSelect,
-      colorButton,
+      controls.nameInput,
+      controls.colorButton,
       updateButton,
-      setColor,
-      refreshPreview,
+      controls.setColor,
+      controls.refreshPreview,
     );
 
   updateButton.addEventListener('click', () =>
-    handleUpdateSubmit(nameInput, modelSelect, getColor),
+    handleUpdateSubmit(
+      controls.nameInput,
+      controls.modelSelect,
+      controls.getColor,
+    ),
   );
 
-  const element = createElement({
-    tag: 'div',
-    classNames: ['control-row'],
-    children: [nameInput, modelSelect, colorButton, previewBox, updateButton],
-  });
-
-  return { element, populate };
+  return {
+    element: buildUpdateRow(
+      controls.nameInput,
+      controls.modelSelect,
+      controls.colorButton,
+      controls.previewBox,
+      updateButton,
+    ),
+    populate,
+  };
 };
 
 const buildActionBar = (): HTMLElement => {

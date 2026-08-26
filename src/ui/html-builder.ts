@@ -9,9 +9,7 @@ export interface ElementOptions {
 export const createElement = <K extends keyof HTMLElementTagNameMap>(
   options: ElementOptions & { tag: K },
 ): HTMLElementTagNameMap[K] => {
-  const element = document.createElement(
-    options.tag,
-  ) as HTMLElementTagNameMap[K];
+  const element = document.createElement(options.tag);
 
   if (options.classNames) {
     element.classList.add(...options.classNames);
