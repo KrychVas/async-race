@@ -209,6 +209,12 @@ select:focus {
   cursor: pointer;
 }
 
+.car-preview-box svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+
 .track-container {
   display: flex;
   flex-direction: column;
@@ -232,7 +238,7 @@ select:focus {
 
 .track {
   position: relative;
-  height: 50px;
+  height: 70px;
   background: var(--track-bg);
   border-bottom: 2px dashed var(--border-color);
   display: flex;
@@ -244,8 +250,8 @@ select:focus {
 .car-icon {
   position: absolute;
   left: 0;
-  width: 60px;
-  height: 30px;
+  width: 90px;
+  height: 45px;
   transition: transform 0.1s linear;
   display: flex;
   align-items: center;
@@ -254,8 +260,9 @@ select:focus {
 }
 
 .car-icon svg {
-  width: 50px;
-  height: 25px;
+  height: 40px;
+  width: auto;
+  max-width: 90px;
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
 }
 
@@ -293,10 +300,10 @@ select:focus {
   background: linear-gradient(
     to bottom,
     rgba(240, 240, 240, 0.65) 0%,
-    rgba(240, 240, 240, 0.65) 20%, /* Верхня колія */
-    transparent 20%,
-    transparent 80%,               /* Проміжок */
-    rgba(240, 240, 240, 0.65) 80%,
+    rgba(240, 240, 240, 0.65) 20%,
+    /* Верхня колія */ transparent 20%,
+    transparent 80%,
+    /* Проміжок */ rgba(240, 240, 240, 0.65) 80%,
     rgba(240, 240, 240, 0.65) 100% /* Нижня колія */
   );
 
@@ -464,10 +471,22 @@ select:focus {
   margin: 0 auto;
 }
 
+.modal-car-preview svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+
+.winners-table svg {
+  height: 30px;
+  width: auto;
+}
+
 .color-modal-row {
   align-items: center;
   justify-content: space-between;
 }
+
 /* Custom Dropdown Styling */
 .custom-select-container {
   position: relative;
